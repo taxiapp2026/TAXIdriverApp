@@ -17,13 +17,13 @@ ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build"
 OUT = ROOT / "taxi-and-fly-google-ads-9x16.mp4"
 VO_DIR = BUILD / "vo_nestoras"
-ARTIFACT = Path("/opt/cursor/artifacts/taxi_and_fly_arxi_logia.mp4")
+ARTIFACT = Path("/opt/cursor/artifacts/taxi_and_fly_kai_ercheesai.mp4")
 
 sys.path.insert(0, str(ROOT))
 from build_video import FONT, FONT_REG, duration, ff, kenburns, make_audio, mix, xfade_concat  # noqa: E402
 
 LINES = [
-    "Από όπου κι αν βρίσκεσαι, έρχεσαι στην Αθήνα.",
+    "Από όπου κι αν βρίσκεσαι, και έρχεσαι στην Αθήνα.",
     "Συμπληρώνεις τη φόρμα.",
     "Βάζεις τον προορισμό που θέλεις.",
     "Κλείνεις ραντεβού με έναν οδηγό.",
