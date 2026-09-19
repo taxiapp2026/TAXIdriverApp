@@ -113,7 +113,7 @@ def app_process_clip(dst: Path) -> None:
         (4.8, 2.1),    # home
         (22.2, 12.4),  # destination + price + book
         (35.0, 11.5),  # passenger + driver accept
-        (56.8, 8.5),   # ready / driver coming
+        # "press the button when you land" is a separate clip after arrivals
     ]
     clips = []
     for i, (ss, dur) in enumerate(parts):
