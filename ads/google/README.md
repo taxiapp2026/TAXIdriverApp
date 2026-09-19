@@ -2,7 +2,9 @@
 
 Έτοιμο κάθετο βίντεο 9:16 (1080×1920, ~46"), με φυσική ανδρική ελληνική αφήγηση (Nestoras).
 
-- `taxi-and-fly-google-ads-9x16.mp4` — ανέβασέ το στο Google Ads
+- `taxi-and-fly-google-ads-9x16.mp4` — ελληνικό σποτ
+- `taxi-and-fly-google-ads-9x16-en.mp4` — English version
+- `voiceover-en.txt` — English voiceover
 - `spikazma-el.txt` — τα λόγια της αφήγησης
 - `voiceover-el.txt` — ο ίδιος διάλογος με σημείωση εικόνας
 - `rebuild_natural_vo.py` — ξαναχτίζει το σποτ με φυσική ανδρική φωνή
