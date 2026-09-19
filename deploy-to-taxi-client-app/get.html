@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taxi and Fly — Ταξί Αεροδρόμιο Αθήνα</title>
+  <meta name="description" content="Από και προς αεροδρόμιο Ελευθέριος Βενιζέλος. Κράτηση από παντού — άφιξη στην Αθήνα και Αθήνα προς αεροδρόμιο." />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://taxiapp2026.github.io/taxi-client-app/get.html" />
+  <meta property="og:title" content="Taxi and Fly — Athens Airport Taxi" />
+  <meta property="og:description" content="Book Athens airport taxi transfers to and from Eleftherios Venizelos (ATH)." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://taxiapp2026.github.io/taxi-client-app/get.html" />
+  <meta property="og:image" content="https://taxiapp2026.github.io/taxi-client-app/logo.png" />
+  <meta name="business:contact_data:email" content="taxiandfly.privacy@gmail.com" />
+  <style>
+    :root {
+      --bg: #0f1720;
+      --fg: #f4f1ea;
+      --muted: rgba(244, 241, 234, 0.72);
+      --line: rgba(244, 241, 234, 0.28);
+      --accent: #d4a35c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Georgia, "Times New Roman", serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(212, 163, 92, 0.18), transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, rgba(90, 140, 180, 0.16), transparent 50%),
+        var(--bg);
+      color: var(--fg);
+      padding: 28px 20px 48px;
+    }
+    .wrap { max-width: 34rem; margin: 0 auto; }
+    .logo {
+      display: block;
+      width: 5.5rem;
+      height: 5.5rem;
+      border-radius: 14px;
+      object-fit: cover;
+      margin: 0 0 1rem;
+      border: 1px solid var(--line);
+      background: #111;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .tag {
+      font-family: system-ui, sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0;
+    }
+    .lang {
+      position: relative;
+      font-family: system-ui, sans-serif;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+    .lang-btn {
+      background: #1a2330;
+      border: 1px solid var(--line);
+      color: var(--fg);
+      border-radius: 3px;
+      padding: 0.4rem 0.65rem;
+      cursor: pointer;
+      min-width: 7.5rem;
+      text-align: left;
+      font: inherit;
+    }
+    .lang-btn:hover,
+    .lang-btn[aria-expanded="true"] {
+      border-color: rgba(212, 163, 92, 0.55);
+      background: #243041;
+    }
+    .lang-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      z-index: 50;
+      min-width: 11rem;
+      max-height: 16rem;
+      overflow-y: auto;
+      margin: 0;
+      padding: 0.25rem;
+      list-style: none;
+      background: #1a2330;
+      border: 1px solid rgba(212, 163, 92, 0.45);
+      border-radius: 4px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    }
+    .lang.open .lang-menu { display: block; }
+    .lang-menu button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 0;
+      color: #f4f1ea;
+      font: inherit;
+      padding: 0.5rem 0.65rem;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .lang-menu button:hover,
+    .lang-menu button[aria-selected="true"] {
+      background: rgba(212, 163, 92, 0.22);
+      color: #fff;
+    }
+    html[dir="rtl"] .lang-menu { right: auto; left: 0; }
+    html[dir="rtl"] .lang-btn { text-align: right; }
+    h1 {
+      font-size: clamp(1.9rem, 5vw, 2.45rem);
+      margin: 0 0 0.55rem;
+      letter-spacing: 0.01em;
+      line-height: 1.15;
+    }
+    .lead {
+      margin: 0 0 1.25rem;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 1.05rem;
+    }
+    .points {
+      list-style: none;
+      margin: 0 0 1.5rem;
+      padding: 0;
+      font-family: system-ui, sans-serif;
+      font-size: 0.98rem;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+    .points li {
+      padding: 0.65rem 0;
+      border-top: 1px solid var(--line);
+    }
+    .points li:last-child { border-bottom: 1px solid var(--line); }
+    .btns { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.25rem; }
+    a.btn {
+      display: inline-block;
+      padding: 0.9rem 1.2rem;
+      border: 1px solid var(--line);
+      color: var(--fg);
+      text-decoration: none;
+      border-radius: 3px;
+      font-family: system-ui, sans-serif;
+      font-size: 0.95rem;
+      background: rgba(244, 241, 234, 0.04);
+    }
+    a.btn.primary {
+      border-color: rgba(212, 163, 92, 0.55);
+      background: rgba(212, 163, 92, 0.16);
+    }
+    a.btn:hover { background: rgba(244, 241, 234, 0.1); }
+    .note {
+      margin-top: 1.75rem;
+      font-size: 0.85rem;
+      color: rgba(244, 241, 234, 0.5);
+      font-family: system-ui, sans-serif;
+      line-height: 1.45;
+    }
+    .biz {
+      margin-top: 2rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--line);
+      font-family: system-ui, sans-serif;
+      font-size: 0.88rem;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+    .biz strong { color: var(--fg); font-weight: 600; }
+    .biz a { color: var(--accent); }
+    .legal {
+      margin-top: 0.85rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.1rem;
+      font-size: 0.82rem;
+    }
+    .legal a { color: rgba(244, 241, 234, 0.75); }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <img class="logo" src="logo.png" width="88" height="88" alt="Taxi and Fly logo" />
+    <div class="top">
+      <p class="tag" data-i18n="tag">Αθήνα ⇄ Αεροδρόμιο Ελευθέριος Βενιζέλος</p>
+      <div class="lang" id="langWrap">
+        <button type="button" class="lang-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false">English</button>
+        <ul class="lang-menu" id="langMenu" role="listbox" aria-label="Language"></ul>
+      </div>
+    </div>
+    <h1>Taxi and Fly</h1>
+    <p class="lead" data-i18n="lead">
+      Από και προς αεροδρόμιο Ελευθέριος Βενιζέλος.
+      Κράτηση από παντού για άφιξη στην Αθήνα — και από Αθήνα προς αεροδρόμιο, στην ώρα σου.
+    </p>
+    <ul class="points">
+      <li data-i18n="p1">Από αεροδρόμιο → Αθήνα: παραλαβή στην άφιξη</li>
+      <li data-i18n="p2">Από Αθήνα → αεροδρόμιο: ραντεβού στην ώρα σου</li>
+      <li data-i18n="p3">Καλές τιμές · καλή εξυπηρέτηση · κατέβασε παρακάτω</li>
+    </ul>
+    <div class="btns">
+      <a class="btn primary" id="iosBtn" href="https://apps.apple.com/app/id6804729201" data-i18n="ios">Κατέβασμα από App Store</a>
+      <a class="btn primary" id="androidBtn" href="https://play.google.com/store/apps/details?id=com.taxiandfly.client" data-i18n="android">Κατέβασμα από Google Play</a>
+    </div>
+    <p class="note" data-i18n="note">
+      Taxi and Fly · Από και προς αεροδρόμιο Αθήνας.
+      Πάτα Κατέβασμα για εγκατάσταση. Δεν γίνεται αυτόματη ανακατεύθυνση.
+    </p>
+    <footer class="biz">
+      <p data-i18n="biz">Επιχείρηση: Taxi and Fly — υπηρεσία κράτησης ταξί από/προς το αεροδρόμιο Αθηνών (ATH). Περιοχή εξυπηρέτησης: Αθήνα, Ελλάδα.</p>
+      <p><span data-i18n="contact">Επικοινωνία:</span> <a href="mailto:taxiandfly.privacy@gmail.com">taxiandfly.privacy@gmail.com</a></p>
+      <div class="legal">
+        <a href="privacy.html" data-i18n="privacy">Πολιτική Απορρήτου</a>
+        <a href="https://play.google.com/store/apps/details?id=com.taxiandfly.client">Google Play</a>
+        <a href="https://apps.apple.com/app/id6804729201">App Store</a>
+      </div>
+    </footer>
+  </div>
+  <script>
+    (function () {
+
+      var NAMES = {
+        el: "Ελληνικά", en: "English", de: "Deutsch", fr: "Français", it: "Italiano",
+        es: "Español", ru: "Русский", pl: "Polski", ro: "Română", nl: "Nederlands",
+        tr: "Türkçe", ar: "العربية", zh: "中文", uk: "Українська", he: "עברית"
+      };
+      var RTL = { ar: 1, he: 1 };
+      var T = {
+        el: {
+          tag: "Αθήνα ⇄ Αεροδρόμιο Ελευθέριος Βενιζέλος",
+          lead: "Από και προς αεροδρόμιο Ελευθέριος Βενιζέλος. Κράτηση από παντού για άφιξη στην Αθήνα — και από Αθήνα προς αεροδρόμιο, στην ώρα σου.",
+          p1: "Από αεροδρόμιο → Αθήνα: παραλαβή στην άφιξη",
+          p2: "Από Αθήνα → αεροδρόμιο: ραντεβού στην ώρα σου",
+          p3: "Καλές τιμές · καλή εξυπηρέτηση · κατέβασε παρακάτω",
+          ios: "Κατέβασμα από App Store",
+          android: "Κατέβασμα από Google Play",
+          note: "Taxi and Fly · Από και προς αεροδρόμιο Αθήνας. Πάτα Κατέβασμα για εγκατάσταση. Δεν γίνεται αυτόματη ανακατεύθυνση.",
+          biz: "Επιχείρηση: Taxi and Fly — υπηρεσία κράτησης ταξί από/προς το αεροδρόμιο Αθηνών (ATH). Περιοχή εξυπηρέτησης: Αθήνα, Ελλάδα.",
+          contact: "Επικοινωνία:",
+          privacy: "Πολιτική Απορρήτου",
+          title: "Taxi and Fly — Ταξί Αεροδρόμιο Αθήνα",
+          desc: "Από και προς αεροδρόμιο Ελευθέριος Βενιζέλος. Κράτηση από παντού."
+        },
+        en: {
+          tag: "Athens ⇄ Eleftherios Venizelos Airport",
+          lead: "To and from Eleftherios Venizelos Airport. Book from anywhere for arrival in Athens — and Athens to airport, on time.",
+          p1: "From airport → Athens: pickup on arrival",
+          p2: "From Athens → airport: on-time appointment",
+          p3: "Good prices · great service · download below",
+          ios: "Download on App Store",
+          android: "Get it on Google Play",
+          note: "Taxi and Fly · To and from Athens Airport. Tap Download to install. This page does not auto-redirect.",
+          biz: "Business: Taxi and Fly — Athens airport taxi booking (ATH). Service area: Athens, Greece.",
+          contact: "Contact:",
+          privacy: "Privacy Policy",
+          title: "Taxi and Fly — Athens Airport Taxi",
+          desc: "To and from Eleftherios Venizelos Airport. Book from anywhere."
+        },
+        de: {
+          tag: "Athen ⇄ Flughafen Eleftherios Venizelos",
+          lead: "Zum und vom Flughafen Eleftherios Venizelos. Buche von überall für die Ankunft in Athen — und von Athen zum Flughafen, pünktlich.",
+          p1: "Vom Flughafen → Athen: Abholung bei Ankunft",
+          p2: "Von Athen → Flughafen: Termin zur gewünschten Zeit",
+          p3: "Gute Preise · toller Service · unten herunterladen",
+          ios: "Im App Store laden",
+          android: "Bei Google Play laden",
+          note: "Taxi and Fly · App für Athen-Flughafen-Transfers. Tippe Download zum Installieren. Keine Auto-Weiterleitung.",
+          biz: "Unternehmen: Taxi and Fly — Flughafentaxi Athen (ATH). Servicegebiet: Athen, Griechenland.",
+          contact: "Kontakt:",
+          privacy: "Datenschutz",
+          title: "Taxi and Fly — Athen Flughafentaxi",
+          desc: "Buche von überall für deine Ankunft in Athen am Flughafen Eleftherios Venizelos."
+        },
+        fr: {
+          tag: "Athènes ⇄ Aéroport Eleftherios Venizelos",
+          lead: "Vers et depuis l'aéroport Eleftherios Venizelos. Réservez de n'importe où pour l'arrivée à Athènes — et d'Athènes vers l'aéroport, à l'heure.",
+          p1: "De l'aéroport → Athènes : prise en charge à l'arrivée",
+          p2: "D'Athènes → aéroport : rendez-vous à l'heure",
+          p3: "Bons prix · excellent service · téléchargez ci-dessous",
+          ios: "Télécharger sur l'App Store",
+          android: "Télécharger sur Google Play",
+          note: "Taxi and Fly · App de réservation taxi aéroport Athènes. Appuyez sur Télécharger. Pas de redirection automatique.",
+          biz: "Entreprise : Taxi and Fly — réservation taxi aéroport Athènes (ATH). Zone : Athènes, Grèce.",
+          contact: "Contact :",
+          privacy: "Politique de confidentialité",
+          title: "Taxi and Fly — Taxi Aéroport Athènes",
+          desc: "Réservez de n'importe où pour votre arrivée à Athènes à l'aéroport Eleftherios Venizelos."
+        },
+        it: {
+          tag: "Atene ⇄ Aeroporto Eleftherios Venizelos",
+          lead: "Da e verso l'aeroporto Eleftherios Venizelos. Prenota da ovunque per l'arrivo ad Atene — e da Atene all'aeroporto, puntuale.",
+          p1: "Dall'aeroporto → Atene: ritiro all'arrivo",
+          p2: "Da Atene → aeroporto: appuntamento puntuale",
+          p3: "Buoni prezzi · ottimo servizio · scarica sotto",
+          ios: "Scarica dall'App Store",
+          android: "Scarica da Google Play",
+          note: "Taxi and Fly · App prenotazione taxi aeroporto Atene. Tocca Download. Nessun reindirizzamento automatico.",
+          biz: "Attività: Taxi and Fly — prenotazione taxi aeroporto Atene (ATH). Area: Atene, Grecia.",
+          contact: "Contatto:",
+          privacy: "Privacy",
+          title: "Taxi and Fly — Taxi Aeroporto Atene",
+          desc: "Prenota da ovunque per quando arrivi ad Atene all'aeroporto Eleftherios Venizelos."
+        },
+        es: {
+          tag: "Atenas ⇄ Aeropuerto Eleftherios Venizelos",
+          lead: "Hacia y desde el aeropuerto Eleftherios Venizelos. Reserva desde cualquier lugar para la llegada a Atenas — y de Atenas al aeropuerto, a tiempo.",
+          p1: "Del aeropuerto → Atenas: recogida a la llegada",
+          p2: "De Atenas → aeropuerto: cita a tiempo",
+          p3: "Buenos precios · gran servicio · descarga abajo",
+          ios: "Descargar en App Store",
+          android: "Descargar en Google Play",
+          note: "Taxi and Fly · App de reserva de taxi aeropuerto Atenas. Pulsa Descargar. Sin redirección automática.",
+          biz: "Empresa: Taxi and Fly — reserva de taxi aeropuerto Atenas (ATH). Zona: Atenas, Grecia.",
+          contact: "Contacto:",
+          privacy: "Política de privacidad",
+          title: "Taxi and Fly — Taxi Aeropuerto Atenas",
+          desc: "Reserva desde cualquier lugar para cuando llegues a Atenas al aeropuerto Eleftherios Venizelos."
+        },
+        ru: {
+          tag: "Афины ⇄ Аэропорт Элефтериос Венизелос",
+          lead: "В аэропорт и из аэропорта Элефтериос Венизелос. Бронируйте откуда угодно к прибытию в Афины — и из Афин в аэропорт вовремя.",
+          p1: "Из аэропорта → Афины: встреча по прилёту",
+          p2: "Из Афин → аэропорт: запись ко времени",
+          p3: "Хорошие цены · отличный сервис · скачайте ниже",
+          ios: "Скачать в App Store",
+          android: "Скачать в Google Play",
+          note: "Taxi and Fly · Приложение для такси аэропорта Афин. Нажмите Скачать. Без автоперенаправления.",
+          biz: "Компания: Taxi and Fly — заказ такси аэропорт Афины (ATH). Зона: Афины, Греция.",
+          contact: "Контакты:",
+          privacy: "Политика конфиденциальности",
+          title: "Taxi and Fly — Такси аэропорт Афины",
+          desc: "Бронируйте откуда угодно к прибытию в Афины в аэропорт Элефтериос Венизелос."
+        },
+        pl: {
+          tag: "Ateny ⇄ Lotnisko Eleftherios Venizelos",
+          lead: "Do i z lotniska Eleftherios Venizelos. Rezerwuj z dowolnego miejsca na przyjazd do Aten — i z Aten na lotnisko, na czas.",
+          p1: "Z lotniska → Ateny: odbiór po przylocie",
+          p2: "Z Aten → lotnisko: termin na czas",
+          p3: "Dobre ceny · świetna obsługa · pobierz poniżej",
+          ios: "Pobierz z App Store",
+          android: "Pobierz z Google Play",
+          note: "Taxi and Fly · Aplikacja rezerwacji taksówek lotnisko Ateny. Dotknij Pobierz. Bez auto-przekierowania.",
+          biz: "Firma: Taxi and Fly — rezerwacja taksówek lotnisko Ateny (ATH). Obszar: Ateny, Grecja.",
+          contact: "Kontakt:",
+          privacy: "Polityka prywatności",
+          title: "Taxi and Fly — Taksówka lotnisko Ateny",
+          desc: "Rezerwuj z dowolnego miejsca na przyjazd do Aten na lotnisko Eleftherios Venizelos."
+        },
+        ro: {
+          tag: "Atena ⇄ Aeroportul Eleftherios Venizelos",
+          lead: "Spre și dinspre aeroportul Eleftherios Venizelos. Rezervă de oriunde pentru sosirea la Atena — și din Atena spre aeroport, la timp.",
+          p1: "Din aeroport → Atena: preluare la sosire",
+          p2: "Din Atena → aeroport: programare la timp",
+          p3: "Prețuri bune · serviciu excelent · descarcă mai jos",
+          ios: "Descarcă din App Store",
+          android: "Descarcă din Google Play",
+          note: "Taxi and Fly · Aplicație rezervare taxi aeroport Atena. Apasă Descarcă. Fără redirecționare automată.",
+          biz: "Companie: Taxi and Fly — rezervare taxi aeroport Atena (ATH). Zonă: Atena, Grecia.",
+          contact: "Contact:",
+          privacy: "Politica de confidențialitate",
+          title: "Taxi and Fly — Taxi Aeroport Atena",
+          desc: "Rezervă de oriunde pentru când ajungi la Atena la aeroportul Eleftherios Venizelos."
+        },
+        nl: {
+          tag: "Athene ⇄ Luchthaven Eleftherios Venizelos",
+          lead: "Naar en vanaf luchthaven Eleftherios Venizelos. Boek vanaf overal voor aankomst in Athene — en van Athene naar de luchthaven, op tijd.",
+          p1: "Vanaf luchthaven → Athene: ophalen bij aankomst",
+          p2: "Van Athene → luchthaven: afspraak op tijd",
+          p3: "Goede prijzen · geweldige service · download hieronder",
+          ios: "Download in App Store",
+          android: "Download in Google Play",
+          note: "Taxi and Fly · App voor Athene luchthaventaxi. Tik op Download. Geen automatische doorverwijzing.",
+          biz: "Bedrijf: Taxi and Fly — Athene luchthaventaxi (ATH). Gebied: Athene, Griekenland.",
+          contact: "Contact:",
+          privacy: "Privacybeleid",
+          title: "Taxi and Fly — Athene Luchthaventaxi",
+          desc: "Boek vanaf overal voor je aankomst in Athene op luchthaven Eleftherios Venizelos."
+        },
+        tr: {
+          tag: "Atina ⇄ Eleftherios Venizelos Havalimanı",
+          lead: "Eleftherios Venizelos havalimanına gidiş ve geliş. Atina'ya varış için her yerden rezervasyon — ve Atina'dan havalimanına, zamanında.",
+          p1: "Havalimanından → Atina: varışta karşılama",
+          p2: "Atina'dan → havalimanı: zamanında randevu",
+          p3: "İyi fiyatlar · harika hizmet · aşağıdan indir",
+          ios: "App Store'dan indir",
+          android: "Google Play'den indir",
+          note: "Taxi and Fly · Atina havalimanı taksi rezervasyon uygulaması. İndir'e dokun. Otomatik yönlendirme yok.",
+          biz: "İşletme: Taxi and Fly — Atina havalimanı taksi rezervasyonu (ATH). Bölge: Atina, Yunanistan.",
+          contact: "İletişim:",
+          privacy: "Gizlilik Politikası",
+          title: "Taxi and Fly — Atina Havalimanı Taksi",
+          desc: "Nerede olursan ol, Atina Eleftherios Venizelos havalimanına varışın için her yerden rezervasyon yap."
+        },
+        ar: {
+          tag: "أثينا ⇄ مطار إليفثيريوس فينيزيلوس",
+          lead: "من وإلى مطار إليفثيريوس فينيزيلوس. احجز من أي مكان للوصول إلى أثينا — ومن أثينا إلى المطار في الموعد.",
+          p1: "من المطار → أثينا: استقبال عند الوصول",
+          p2: "من أثينا → المطار: موعد في الوقت المحدد",
+          p3: "أسعار جيدة · خدمة ممتازة · حمّل أدناه",
+          ios: "تحميل من App Store",
+          android: "تحميل من Google Play",
+          note: "Taxi and Fly · تطبيق حجز تاكسي مطار أثينا. اضغط تحميل. لا إعادة توجيه تلقائية.",
+          biz: "الشركة: Taxi and Fly — حجز تاكسي مطار أثينا (ATH). المنطقة: أثينا، اليونان.",
+          contact: "التواصل:",
+          privacy: "سياسة الخصوصية",
+          title: "Taxi and Fly — تاكسي مطار أثينا",
+          desc: "احجز من أي مكان لوصولك إلى أثينا في مطار إليفثيريوس فينيزيلوس."
+        },
+        zh: {
+          tag: "雅典 ⇄ 埃莱夫塞里奥斯·韦尼泽洛斯机场",
+          lead: "往返埃莱夫塞里奥斯·韦尼泽洛斯机场。无论你在哪里都可预约抵达雅典接机 — 也可预约从雅典前往机场，准时出发。",
+          p1: "从机场 → 雅典：抵达接机",
+          p2: "从雅典 → 机场：准时预约",
+          p3: "价格实惠 · 服务优质 · 在下方下载",
+          ios: "从 App Store 下载",
+          android: "从 Google Play 下载",
+          note: "Taxi and Fly · 雅典机场打车预约应用。点击下载安装。本页不会自动跳转。",
+          biz: "商家：Taxi and Fly — 雅典机场出租车预约（ATH）。服务地区：希腊雅典。",
+          contact: "联系：",
+          privacy: "隐私政策",
+          title: "Taxi and Fly — 雅典机场出租车",
+          desc: "无论你在哪里，都可以提前预约雅典埃莱夫塞里奥斯·韦尼泽洛斯机场接机。"
+        },
+        uk: {
+          tag: "Афіни ⇄ Аеропорт Елефтеріос Венізелос",
+          lead: "В аеропорт і з аеропорту Елефтеріос Венізелос. Бронюйте звідусіль на прибуття до Афін — і з Афін до аеропорту вчасно.",
+          p1: "З аеропорту → Афіни: зустріч по прильоту",
+          p2: "З Афін → аеропорт: запис на час",
+          p3: "Хороші ціни · чудовий сервіс · завантажте нижче",
+          ios: "Завантажити з App Store",
+          android: "Завантажити з Google Play",
+          note: "Taxi and Fly · Застосунок бронювання таксі аеропорту Афін. Натисніть Завантажити. Без автоперенаправлення.",
+          biz: "Компанія: Taxi and Fly — бронювання таксі аеропорт Афіни (ATH). Зона: Афіни, Греція.",
+          contact: "Контакт:",
+          privacy: "Політика конфіденційності",
+          title: "Taxi and Fly — Таксі аеропорт Афіни",
+          desc: "Бронюйте звідусіль на прибуття до Афін в аеропорт Елефтеріос Венізелос."
+        },
+        he: {
+          tag: "אתונה ⇄ נמל התעופה אלפתריוס וניזלוס",
+          lead: "אל נמל התעופה אלפתריוס וניזלוס וממנו. הזמינו מכל מקום להגעה לאתונה — וגם מאתונה לנמל התעופה, בזמן.",
+          p1: "מנמל התעופה → אתונה: איסוף בהגעה",
+          p2: "מאתונה → נמל התעופה: תור בזמן",
+          p3: "מחירים טובים · שירות מעולה · הורידו למטה",
+          ios: "הורדה מ-App Store",
+          android: "הורדה מ-Google Play",
+          note: "Taxi and Fly · אפליקציית הזמנת מונית נמל תעופה אתונה. לחצו הורדה. ללא הפניה אוטומטית.",
+          biz: "עסק: Taxi and Fly — הזמנת מונית נמל תעופה אתונה (ATH). אזור: אתונה, יוון.",
+          contact: "יצירת קשר:",
+          privacy: "מדיניות פרטיות",
+          title: "Taxi and Fly — מונית נמל תעופה אתונה",
+          desc: "הזמינו מכל מקום לקראת הגעתכם לאתונה בנמל התעופה אלפתריוס וניזלוס."
+        }
+      };
+
+
+      function detectLang() {
+        var list = [];
+        try {
+          if (navigator.languages && navigator.languages.length) list = navigator.languages;
+          else if (navigator.language) list = [navigator.language];
+        } catch (e) {}
+        for (var i = 0; i < list.length; i++) {
+          var code = String(list[i] || "").toLowerCase().split("-")[0];
+          if (T[code]) return code;
+        }
+        return "en";
+      }
+
+      function apply(lang) {
+        if (!T[lang]) lang = "en";
+        var pack = T[lang];
+        document.documentElement.lang = lang;
+        document.documentElement.dir = RTL[lang] ? "rtl" : "ltr";
+        document.title = pack.title;
+        var meta = document.querySelector('meta[name="description"]');
+        if (meta) meta.setAttribute("content", pack.desc);
+        document.querySelectorAll("[data-i18n]").forEach(function (el) {
+          var key = el.getAttribute("data-i18n");
+          if (pack[key]) el.textContent = pack[key];
+        });
+        var btn = document.getElementById("langBtn");
+        if (btn) btn.textContent = NAMES[lang] || lang;
+        document.querySelectorAll("#langMenu button").forEach(function (b) {
+          b.setAttribute("aria-selected", b.getAttribute("data-lang") === lang ? "true" : "false");
+        });
+        try { localStorage.setItem("taf_lang", lang); } catch (e) {}
+      }
+
+      function closeLang() {
+        var wrap = document.getElementById("langWrap");
+        var btn = document.getElementById("langBtn");
+        if (wrap) wrap.classList.remove("open");
+        if (btn) btn.setAttribute("aria-expanded", "false");
+      }
+
+      var menu = document.getElementById("langMenu");
+      var langBtn = document.getElementById("langBtn");
+      var langWrap = document.getElementById("langWrap");
+      if (menu && langBtn && langWrap) {
+        Object.keys(NAMES).forEach(function (code) {
+          if (!T[code]) return;
+          var li = document.createElement("li");
+          var b = document.createElement("button");
+          b.type = "button";
+          b.setAttribute("role", "option");
+          b.setAttribute("data-lang", code);
+          b.textContent = NAMES[code];
+          b.addEventListener("click", function () {
+            apply(code);
+            closeLang();
+          });
+          li.appendChild(b);
+          menu.appendChild(li);
+        });
+        langBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var open = !langWrap.classList.contains("open");
+          langWrap.classList.toggle("open", open);
+          langBtn.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+        document.addEventListener("click", function () { closeLang(); });
+        langWrap.addEventListener("click", function (e) { e.stopPropagation(); });
+      }
+
+      var q = new URLSearchParams(location.search);
+      var qr = String(q.get("qr") || q.get("qrId") || "").replace(/[^A-Za-z0-9_-]/g, "");
+      var forced = (q.get("lang") || "").toLowerCase().split("-")[0];
+      var saved = "";
+      try { saved = localStorage.getItem("taf_lang") || ""; } catch (e) {}
+      var lang = (forced && T[forced])
+        ? forced
+        : (saved && T[saved])
+          ? saved
+          : detectLang();
+      apply(lang);
+
+      var ios = "https://apps.apple.com/app/id6804729201";
+      var android = "https://play.google.com/store/apps/details?id=com.taxiandfly.client" +
+        (qr ? "&referrer=" + encodeURIComponent("qrId=" + qr) : "");
+      var ua = navigator.userAgent || "";
+      var isIOS = /iPhone|iPad|iPod/i.test(ua);
+      var isAndroid = /Android/i.test(ua);
+      var iosBtn = document.getElementById("iosBtn");
+      var androidBtn = document.getElementById("androidBtn");
+      if (iosBtn) iosBtn.href = ios;
+      if (androidBtn) androidBtn.href = android;
+      if (isIOS && androidBtn) androidBtn.style.opacity = "0.55";
+      if (isAndroid && iosBtn) iosBtn.style.opacity = "0.55";
+
+    })();
+  </script>
+</body>
+</html>

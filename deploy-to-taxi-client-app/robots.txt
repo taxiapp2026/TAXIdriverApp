@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://taxiapp2026.github.io/taxi-client-app/ads.html
