@@ -1,0 +1,14 @@
+Facebook Page — Taxi and Fly
+
+Όνομα σελίδας: Taxi and Fly
+Κατηγορία: Taxi Service / Εταιρεία μεταφορών
+Ιστότοπος: https://taxiapp2026.github.io/taxi-client-app/
+
+Περιγραφή (ελληνικά):
+Taxi and Fly. Κλείνεις ταξί από και προς το αεροδρόμιο Αθήνας Ελευθέριος Βενιζέλος, με επαγγελματίες οδηγούς. Από όπου κι αν βρίσκεσαι, και έρχεσαι στην Αθήνα.
+
+Description (English):
+Taxi and Fly. Book a taxi to and from Athens Airport Eleftherios Venizelos, with professional drivers. Wherever you are, and you're coming to Athens.
+
+Κουμπί ενέργειας: Κάντε κράτηση / Book now
+→ https://taxiapp2026.github.io/taxi-client-app/
