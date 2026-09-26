@@ -1,10 +1,10 @@
-Ξεκινά το Taxi and Fly.
-Μια τόσο απλή εφαρμογή. Χωρίς login.
-Κλείνεις τόσο εύκολα, από και προς το αεροδρόμιο.
+Taxi and Fly.
+Μια τόσο απλή εφαρμογή.
+Από και προς το αεροδρόμιο.
 Δοκίμασέ την.
 
 English
-This is Taxi and Fly.
-Such a simple app. No login.
-You book so easily, to and from the airport.
+Taxi and Fly.
+Such a simple app.
+To and from the airport.
 Try it.
