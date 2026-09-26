@@ -29,7 +29,7 @@ from build_video import FONT, duration, ff, kenburns, mix  # noqa: E402
 
 EL = {
     "out": ROOT / "taxi-and-fly-athens-to-airport-el.mp4",
-    "art": Path("/opt/cursor/artifacts/taxi_and_fly_square_el.mp4"),
+    "art": Path("/opt/cursor/artifacts/taxi_and_fly_circle_el.mp4"),
     "vo": BUILD / "vo_simple_el",
     "voice": "el-GR-NestorasNeural",
     "rate": "-6%",
@@ -102,25 +102,36 @@ def _knockout_light(src: Image.Image) -> Image.Image:
     return im.crop(bbox) if bbox else im
 
 
+def icon_lettering() -> Image.Image:
+    """Just the Taxi and Fly lettering — the rounded-square frame stripped off."""
+    src = Image.open(ICON).convert("RGB")
+    w, h = src.size
+    art = src.crop((14, 14, w - 14, h - 14)).convert("RGBA")
+    px = []
+    for r, g, b, a in art.getdata():
+        lit = max(r, g, b)
+        # Keep gold and white glyphs; drop the dark plate behind them.
+        px.append((r, g, b, 255) if lit > 110 else (0, 0, 0, 0))
+    art.putdata(px)
+    bbox = art.getbbox()
+    return art.crop(bbox) if bbox else art
+
+
 def brand_badge() -> Image.Image:
-    """Smaller yellow ring; keep the icon as a white-edged rounded square."""
+    """Smaller yellow ring with the lettering inside — no square frame."""
     size = 720
     badge = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(badge)
-    # Smaller circle — more inset, thinner stroke.
-    pad = 110
-    draw.ellipse((pad, pad, size - pad, size - pad), outline=GOLD + (255,), width=26)
-    icon = Image.open(ICON).convert("RGBA")
-    inner = 360
-    iw, ih = icon.size
-    scale = min(inner / iw, inner / ih)
-    fitted = icon.resize((max(1, int(iw * scale)), max(1, int(ih * scale))), Image.Resampling.LANCZOS)
-    # White rounded-square frame so the corners stay visible.
-    sq = Image.new("RGBA", (fitted.width + 18, fitted.height + 18), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(sq)
-    sd.rounded_rectangle((0, 0, sq.width - 1, sq.height - 1), radius=48, fill=(8, 8, 8, 255), outline=(235, 235, 235, 255), width=6)
-    sq.paste(fitted, (9, 9), fitted)
-    badge.alpha_composite(sq, ((size - sq.width) // 2, (size - sq.height) // 2))
+    pad = 120
+    draw.ellipse((pad, pad, size - pad, size - pad), outline=GOLD + (255,), width=24)
+    letters = icon_lettering()
+    inner = size - 2 * pad - 130
+    scale = min(inner / letters.width, inner / letters.height)
+    letters = letters.resize(
+        (max(1, int(letters.width * scale)), max(1, int(letters.height * scale))),
+        Image.Resampling.LANCZOS,
+    )
+    badge.alpha_composite(letters, ((size - letters.width) // 2, (size - letters.height) // 2))
     return badge
 
 
