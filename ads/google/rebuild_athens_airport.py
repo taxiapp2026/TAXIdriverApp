@@ -34,18 +34,18 @@ EL = {
     "voice": "el-GR-NestorasNeural",
     "rate": "-10%",
     "lines": [
-        "Ανοίγεις την εφαρμογή.",
-        "Συμπληρώνεις τη φόρμα. Κλείνει το ραντεβού.",
-        "Το ραντεβού πάει στον φάκελο.",
-        "Πατάς το ραντεβού και μιλάς με τον οδηγό.",
+        "Ξεκινά το Taxi and Fly.",
+        "Μια τόσο απλή εφαρμογή. Χωρίς login.",
+        "Κλείνεις τόσο εύκολα, από και προς το αεροδρόμιο.",
+        "Δοκίμασέ την.",
     ],
     "end": [
         ("Taxi and Fly.", "-8%"),
-        ("Από την Αθήνα προς το αεροδρόμιο.", "-16%"),
-        ("Με επαγγελματίες οδηγούς ταξί.", "-10%"),
+        ("Από και προς το αεροδρόμιο.", "-16%"),
+        ("Δοκίμασέ την.", "-10%"),
     ],
-    "card": ("Από την Αθήνα", "προς το αεροδρόμιο"),
-    "card_sub": "με επαγγελματίες οδηγούς ταξί",
+    "card": ("Από και προς", "το αεροδρόμιο"),
+    "card_sub": "Δοκίμασέ την",
 }
 
 EN = {
@@ -55,18 +55,18 @@ EN = {
     "voice": "en-US-AndrewNeural",
     "rate": "-8%",
     "lines": [
-        "You open the app.",
-        "You fill in the form. The appointment is booked.",
-        "The appointment goes into the folder.",
-        "You tap the appointment and you talk to the driver.",
+        "This is Taxi and Fly.",
+        "Such a simple app. No login.",
+        "You book so easily, to and from the airport.",
+        "Try it.",
     ],
     "end": [
         ("Taxi and Fly.", "-6%"),
-        ("From Athens to the airport.", "-14%"),
-        ("With professional taxi drivers.", "-8%"),
+        ("To and from the airport.", "-14%"),
+        ("Try it.", "-8%"),
     ],
-    "card": ("From Athens", "to the airport"),
-    "card_sub": "with professional taxi drivers",
+    "card": ("To and from", "the airport"),
+    "card_sub": "Try it",
 }
 
 
