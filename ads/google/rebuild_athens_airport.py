@@ -34,10 +34,10 @@ EL = {
     "voice": "el-GR-NestorasNeural",
     "rate": "-10%",
     "lines": [
-        "Συμπληρώνεις τη φόρμα.",
-        "Κλείνει το ραντεβού.",
-        "Το ραντεβού βρίσκεται στον φάκελο.",
-        "Πατάς το ραντεβού. Εκεί βλέπεις την επικοινωνία με τον οδηγό.",
+        "Ανοίγεις την εφαρμογή.",
+        "Συμπληρώνεις τη φόρμα. Κλείνει το ραντεβού.",
+        "Το ραντεβού πάει στον φάκελο.",
+        "Πατάς το ραντεβού και μιλάς με τον οδηγό.",
     ],
     "end": [
         ("Taxi and Fly.", "-8%"),
@@ -55,10 +55,10 @@ EN = {
     "voice": "en-US-AndrewNeural",
     "rate": "-8%",
     "lines": [
-        "You fill in the form.",
-        "The appointment is booked.",
-        "The appointment is in the folder.",
-        "You tap the appointment. There you see how to contact the driver.",
+        "You open the app.",
+        "You fill in the form. The appointment is booked.",
+        "The appointment goes into the folder.",
+        "You tap the appointment and you talk to the driver.",
     ],
     "end": [
         ("Taxi and Fly.", "-6%"),

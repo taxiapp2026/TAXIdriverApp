@@ -1,14 +1,14 @@
-Αθήνα → αεροδρόμιο
+Πώς δουλεύει η εφαρμογή — απλά
 
-1. Συμπληρώνεις τη φόρμα.
-2. Κλείνει το ραντεβού.
-3. Το ραντεβού βρίσκεται στον φάκελο.
-4. Πατάς το ραντεβού. Εκεί βλέπεις την επικοινωνία με τον οδηγό.
+1. Ανοίγεις την εφαρμογή.
+2. Συμπληρώνεις τη φόρμα. Κλείνει το ραντεβού.
+3. Το ραντεβού πάει στον φάκελο.
+4. Πατάς το ραντεβού και μιλάς με τον οδηγό.
 5. Taxi and Fly. Από την Αθήνα προς το αεροδρόμιο.
 
 English
-1. You fill in the form.
-2. The appointment is booked.
-3. The appointment is in the folder.
-4. You tap the appointment. There you see how to contact the driver.
+1. You open the app.
+2. You fill in the form. The appointment is booked.
+3. The appointment goes into the folder.
+4. You tap the appointment and you talk to the driver.
 5. Taxi and Fly. From Athens to the airport.
