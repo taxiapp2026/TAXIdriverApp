@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build"
 LOGO = ROOT.parent / "meta" / "logo-taxi-and-fly.png"
+APP_LOGO = ROOT.parent / "meta" / "logo-app.png"
 W, H, FPS = 1080, 1920, 30
 GOLD = (255, 210, 40)
 WHITE = (240, 240, 240)
@@ -86,21 +87,43 @@ def _wrapped(draw: ImageDraw.ImageDraw, text: str, y: int, font, fill, max_w: in
     return top - y
 
 
-def brand_logo() -> Image.Image:
-    """The real Taxi and Fly mark, not the cropped TAXI ring."""
-    src = Image.open(LOGO).convert("RGB")
-    return src.resize((920, 920), Image.Resampling.LANCZOS)
+def _knockout_light(src: Image.Image) -> Image.Image:
+    im = src.convert("RGBA")
+    px = list(im.getdata())
+    cleaned = []
+    for r, g, b, a in px:
+        if r > 220 and g > 220 and b > 220:
+            cleaned.append((0, 0, 0, 0))
+        else:
+            cleaned.append((r, g, b, a))
+    im.putdata(cleaned)
+    bbox = im.getbbox()
+    return im.crop(bbox) if bbox else im
+
+
+def brand_badge() -> Image.Image:
+    """Yellow ring with the app logo in the middle — not the word TAXI."""
+    size = 640
+    badge = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(badge)
+    draw.ellipse((18, 18, size - 18, size - 18), outline=GOLD + (255,), width=40)
+    mark = _knockout_light(Image.open(APP_LOGO))
+    mark.thumbnail((380, 240), Image.Resampling.LANCZOS)
+    badge.alpha_composite(mark, ((size - mark.width) // 2, (size - mark.height) // 2 - 18))
+    return badge
 
 
 def brand_slide(phrase: str, dst: Path) -> None:
-    """9:16 card — official logo + one line of copy. Never a phone."""
+    """9:16 card — logo in the ring + one line of copy. Never a phone."""
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
-    mark = brand_logo()
-    img.paste(mark, ((W - mark.width) // 2, 220))
+    badge = brand_badge()
+    img.paste(badge, ((W - badge.width) // 2, 340), badge)
+    f_brand = ImageFont.truetype(FONT, 64)
     f_t = ImageFont.truetype(FONT, 50)
+    _center(draw, "Taxi and Fly", 1020, f_brand, GOLD)
     if phrase and phrase != "Taxi and Fly":
-        _wrapped(draw, phrase, 1220, f_t, WHITE)
+        _wrapped(draw, phrase, 1140, f_t, WHITE)
     img.save(dst)
 
 
