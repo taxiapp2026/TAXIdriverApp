@@ -31,14 +31,14 @@ EL = {
     "vo": BUILD / "vo_simple_el",
     "voice": "el-GR-NestorasNeural",
     "lines": [
-        ("Taxi and Fly.", "-12%"),
         ("Μια τόσο απλή εφαρμογή.", "-14%"),
+        ("Χωρίς login.", "-14%"),
         ("Από και προς το αεροδρόμιο.", "-20%"),
         ("Δοκίμασέ την.", "-12%"),
     ],
     "slides": [
-        "Taxi and Fly",
         "Μια τόσο απλή εφαρμογή",
+        "Χωρίς login",
         "Από και προς το αεροδρόμιο",
         "Δοκίμασέ την",
     ],
@@ -50,14 +50,14 @@ EN = {
     "vo": BUILD / "vo_simple_en",
     "voice": "en-US-AndrewNeural",
     "lines": [
-        ("Taxi and Fly.", "-10%"),
         ("Such a simple app.", "-12%"),
+        ("No login.", "-12%"),
         ("To and from the airport.", "-16%"),
         ("Try it.", "-10%"),
     ],
     "slides": [
-        "Taxi and Fly",
         "Such a simple app",
+        "No login",
         "To and from the airport",
         "Try it",
     ],
