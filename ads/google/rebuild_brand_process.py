@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 import edge_tts
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build"
@@ -116,6 +116,9 @@ def icon_lettering() -> Image.Image:
         # Keep gold and white glyphs; drop the dark plate behind them.
         px.append((r, g, b, 255) if lit > 110 else (0, 0, 0, 0))
     art.putdata(px)
+    # Opening drops the stray corner pixels the rounded frame leaves behind.
+    alpha = art.getchannel("A").filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
+    art.putalpha(alpha)
     bbox = art.getbbox()
     return art.crop(bbox) if bbox else art
 

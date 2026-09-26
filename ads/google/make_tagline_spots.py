@@ -1,0 +1,357 @@
+#!/usr/bin/env python3
+"""Four very short brand spots — one tagline each, ending on Taxi and Fly.
+
+Frames are drawn one by one so the words land on the voice instead of just
+sliding a still around.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import math
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import edge_tts
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+ROOT = Path(__file__).resolve().parent
+BUILD = ROOT / "build"
+ART = Path("/opt/cursor/artifacts")
+
+sys.path.insert(0, str(ROOT))
+from add_pretty_music import pretty_music  # noqa: E402
+from build_video import FONT, FONT_REG, duration, ff, mix  # noqa: E402
+from rebuild_brand_process import icon_lettering, mix_vo  # noqa: E402
+
+W, H, FPS = 1080, 1920, 30
+GOLD = (255, 210, 40)
+WHITE = (242, 242, 242)
+GREY = (168, 168, 168)
+BG = (8, 8, 8, 255)
+APP_URL = "taxiapp2026.github.io/taxi-client-app"
+
+VOICE = "el-GR-NestorasNeural"
+RATE = "-8%"
+TICKS = 10_000_000.0
+
+SPOTS = [
+    {
+        "slug": "pata-kleise-peta",
+        "el": "Πάτα. Κλείσε. Πέτα.",
+        "en": "Tap. Book. Fly.",
+    },
+    {
+        "slug": "porta-pyli",
+        "el": "Από την πόρτα σου μέχρι την πύλη σου",
+        "en": "From your door to your gate",
+    },
+    {
+        "slug": "xoris-agxos",
+        "el": "Χωρίς εγγραφή. Χωρίς άγχος.",
+        "en": "No sign-up. No stress.",
+    },
+    {
+        "slug": "ptisi-porta",
+        "el": "Η πτήση σου ξεκινάει από την πόρτα σου",
+        "en": "Your flight starts at your front door",
+    },
+]
+
+
+def glow_layer() -> Image.Image:
+    """Soft gold halo behind everything, so the black never looks flat."""
+    h = H + 160
+    yy, xx = np.mgrid[0:h, 0:W]
+    d = np.sqrt(((xx - W / 2) / 620.0) ** 2 + ((yy - h / 2) / 760.0) ** 2)
+    a = np.clip(1.0 - d, 0.0, 1.0) ** 2.4 * 78.0
+    rgba = np.zeros((h, W, 4), dtype=np.uint8)
+    rgba[..., 0], rgba[..., 1], rgba[..., 2] = GOLD
+    rgba[..., 3] = a.astype(np.uint8)
+    return Image.fromarray(rgba, "RGBA")
+
+
+GLOW = glow_layer()
+BADGE_SRC: Image.Image | None = None
+
+
+def badge_image() -> Image.Image:
+    global BADGE_SRC
+    if BADGE_SRC is None:
+        size = 620
+        mark = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(mark)
+        draw.ellipse((14, 14, size - 14, size - 14), outline=GOLD + (255,), width=18)
+        letters = icon_lettering()
+        inner = int(size * 0.60)
+        scale = min(inner / letters.width, inner / letters.height)
+        letters = letters.resize(
+            (max(1, int(letters.width * scale)), max(1, int(letters.height * scale))),
+            Image.Resampling.LANCZOS,
+        )
+        mark.alpha_composite(letters, ((size - letters.width) // 2, (size - letters.height) // 2))
+        BADGE_SRC = mark
+    return BADGE_SRC
+
+
+def layout_words(draw: ImageDraw.ImageDraw, text: str, font, max_w: int, line_h: int):
+    """Place every word, so each one can fade in on its own."""
+    lines: list[list[str]] = []
+    cur: list[str] = []
+    for word in text.split():
+        trial = " ".join(cur + [word])
+        if draw.textlength(trial, font=font) <= max_w or not cur:
+            cur.append(word)
+        else:
+            lines.append(cur)
+            cur = [word]
+    if cur:
+        lines.append(cur)
+
+    placed = []
+    idx = 0
+    for row, words in enumerate(lines):
+        line_w = draw.textlength(" ".join(words), font=font)
+        x = (W - line_w) / 2
+        for word in words:
+            placed.append({"text": word, "x": x, "y": row * line_h, "i": idx})
+            x += draw.textlength(word + " ", font=font)
+            idx += 1
+    return placed, len(lines) * line_h
+
+
+def background(t: float) -> Image.Image:
+    base = Image.new("RGBA", (W, H), BG)
+    drift = int(26 * math.sin(t * 0.55))
+    base.alpha_composite(GLOW, (0, -80 + drift))
+    return base
+
+
+def tagline_frame(t: float, cfg: dict) -> Image.Image:
+    img = background(t)
+    draw = ImageDraw.Draw(img)
+    f_el = cfg["f_el"]
+    f_en = cfg["f_en"]
+    placed = cfg["placed"]
+    block_h = cfg["block_h"]
+    line_h = cfg["line_h"]
+    top = 900 - block_h / 2 - min(t * 5, 22)
+
+    last_word_end = cfg["word_times"][-1] + 0.35
+    for item in placed:
+        start = cfg["word_times"][min(item["i"], len(cfg["word_times"]) - 1)]
+        k = max(0.0, min((t - start) / 0.26, 1.0))
+        if k <= 0:
+            continue
+        ease = 1 - (1 - k) ** 3
+        y = top + item["y"] + (1 - ease) * 26
+        draw.text((item["x"], y), item["text"], font=f_el, fill=WHITE + (int(255 * ease),))
+
+    bar_k = max(0.0, min((t - cfg["word_times"][0]) / max(last_word_end - cfg["word_times"][0], 0.4), 1.0))
+    bar_w = 260 * bar_k
+    bar_y = top + block_h + 46
+    if bar_w > 2:
+        draw.rounded_rectangle(
+            (W / 2 - bar_w / 2, bar_y, W / 2 + bar_w / 2, bar_y + 7), radius=4, fill=GOLD + (230,)
+        )
+
+    en_k = max(0.0, min((t - cfg["en_at"]) / 0.4, 1.0))
+    if en_k > 0:
+        en_w = draw.textlength(cfg["en"], font=f_en)
+        draw.text(
+            ((W - en_w) / 2, bar_y + 46 + (1 - en_k) * 14),
+            cfg["en"],
+            font=f_en,
+            fill=GREY + (int(235 * en_k),),
+        )
+    return img
+
+
+def brand_frame(t: float, switch: float, cfg: dict) -> Image.Image:
+    img = background(t)
+    draw = ImageDraw.Draw(img)
+    since = max(t - switch, 0.0)
+    grow = 1 - (1 - min(since / 0.7, 1.0)) ** 3
+    scale = 0.90 + 0.10 * grow + 0.016 * min(since, 3.0)
+    mark = badge_image()
+    size = int(mark.width * scale)
+    mark = mark.resize((size, size), Image.Resampling.LANCZOS)
+    img.alpha_composite(mark, ((W - size) // 2, 620 - size // 2))
+
+    f_brand = cfg["f_brand"]
+    f_url = cfg["f_url"]
+    rise = (1 - grow) * 18
+    bw = draw.textlength("Taxi and Fly", font=f_brand)
+    draw.text(((W - bw) / 2, 1080 + rise), "Taxi and Fly", font=f_brand, fill=GOLD + (255,))
+    uw = draw.textlength(APP_URL, font=f_url)
+    fade = min(max((since - 0.35) / 0.5, 0.0), 1.0)
+    draw.text(((W - uw) / 2, 1230), APP_URL, font=f_url, fill=GREY + (int(230 * fade),))
+    return img
+
+
+async def speak(text: str, dst: Path) -> list[dict]:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    last: Exception | None = None
+    for attempt in range(8):
+        try:
+            comm = edge_tts.Communicate(text, VOICE, rate=RATE, pitch="+0Hz", boundary="WordBoundary")
+            audio = bytearray()
+            marks: list[dict] = []
+            async for chunk in comm.stream():
+                if chunk["type"] == "audio":
+                    audio.extend(chunk["data"])
+                elif chunk["type"] == "WordBoundary":
+                    marks.append({"t": chunk["offset"] / TICKS, "text": chunk["text"]})
+            if len(audio) < 2000:
+                raise RuntimeError("empty audio")
+            dst.write_bytes(bytes(audio))
+            return marks
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            print("retry", dst.name, exc)
+            time.sleep(1.1 + attempt * 0.5)
+    raise RuntimeError(last)
+
+
+def to_wav(src: Path, dst: Path) -> Path:
+    ff("-i", str(src), "-ac", "1", "-ar", "44100", str(dst))
+    return dst
+
+
+def lead_silence(path: Path) -> float:
+    out = subprocess.run(
+        ["ffmpeg", "-v", "info", "-i", str(path), "-af", "silencedetect=noise=-50dB:d=0.05", "-f", "null", "-"],
+        capture_output=True, text=True,
+    ).stderr
+    starts = [l for l in out.splitlines() if "silence_start" in l]
+    ends = [l for l in out.splitlines() if "silence_end" in l]
+    if not starts or not ends or float(starts[0].split("silence_start:")[1]) > 0.02:
+        return 0.0
+    return float(ends[0].split("silence_end:")[1].split("|")[0])
+
+
+def trim_edges(src: Path, dst: Path) -> float:
+    """Strip the dead air the TTS leaves at both ends; return the lead it cut."""
+    lead = lead_silence(src)
+    ff(
+        "-i", str(src),
+        "-af",
+        "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB,"
+        "areverse,"
+        "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB,"
+        "areverse",
+        "-ac", "1", "-ar", "44100", str(dst),
+    )
+    return lead
+
+
+GAP = 0.95
+TAIL = 1.2
+
+
+async def build(spot: dict) -> Path:
+    slug = spot["slug"]
+    print("TTS", spot["el"])
+    tag_mp3 = BUILD / f"spot_{slug}_tag.mp3"
+    marks = await speak(spot["el"], tag_mp3)
+    brand_mp3 = BUILD / f"spot_{slug}_brand.mp3"
+    await speak("Taxi and Fly.", brand_mp3)
+
+    lead = trim_edges(tag_mp3, BUILD / f"spot_{slug}_tag.wav")
+    tag_wav = BUILD / f"spot_{slug}_tag.wav"
+    brand_wav = BUILD / f"spot_{slug}_brand.wav"
+    trim_edges(brand_mp3, brand_wav)
+    pause = BUILD / f"spot_{slug}_pause.wav"
+    ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{GAP:.3f}", str(pause))
+    lst = BUILD / f"spot_{slug}_join.txt"
+    lst.write_text("".join(f"file '{p.resolve()}'\n" for p in (tag_wav, pause, brand_wav)))
+    vo = BUILD / f"spot_{slug}_vo.wav"
+    ff("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(vo))
+
+    word_times = [max(m["t"] - lead, 0.06) for m in marks] or [0.3]
+    t1 = duration(tag_wav)
+    # Hold the finished line for a beat, then land on the logo with the words.
+    switch = t1 + 0.8
+    total = t1 + GAP + duration(brand_wav) + TAIL
+
+    probe = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    f_el = ImageFont.truetype(FONT, 78)
+    placed, block_h = layout_words(probe, spot["el"], f_el, 900, 104)
+    cfg = {
+        "f_el": f_el,
+        "f_en": ImageFont.truetype(FONT_REG, 40),
+        "f_brand": ImageFont.truetype(FONT, 84),
+        "f_url": ImageFont.truetype(FONT_REG, 33),
+        "placed": placed,
+        "block_h": block_h,
+        "line_h": 104,
+        "word_times": word_times,
+        "en_at": word_times[min(1, len(word_times) - 1)] + 0.2,
+        "en": spot["en"],
+    }
+
+    frames = BUILD / f"frames_{slug}"
+    shutil.rmtree(frames, ignore_errors=True)
+    frames.mkdir(parents=True)
+    n = int(round(total * FPS))
+    fade = 0.45
+    for i in range(n):
+        t = i / FPS
+        k = (t - switch) / fade
+        if k <= 0:
+            img = tagline_frame(t, cfg)
+        elif k >= 1:
+            img = brand_frame(t, switch, cfg)
+        else:
+            img = Image.blend(tagline_frame(t, cfg), brand_frame(t, switch, cfg), k)
+        img.convert("RGB").save(frames / f"{i:05d}.png")
+
+    silent = BUILD / f"spot_{slug}_silent.mp4"
+    ff(
+        "-framerate", str(FPS), "-i", str(frames / "%05d.png"),
+        "-vf", "format=yuv420p,setsar=1",
+        "-fps_mode", "cfr", "-r", str(FPS),
+        "-c:v", "libx264", "-preset", "medium", "-crf", "19",
+        "-profile:v", "high", "-level", "4.0",
+        "-g", str(FPS * 2), "-keyint_min", str(FPS), "-sc_threshold", "0",
+        "-an", str(silent),
+    )
+
+    vlen = duration(silent)
+    bed = BUILD / f"spot_{slug}_bed.wav"
+    pretty_music(vlen + 0.4, bed)
+    mixed = BUILD / f"spot_{slug}_mix.m4a"
+    mix_vo(vo, bed, vlen + 0.05, mixed)
+    tmp = BUILD / f"spot_{slug}_tmp.mp4"
+    mix(silent, mixed, tmp)
+
+    out = ROOT / f"taxi-and-fly-spot-{slug}.mp4"
+    ff(
+        "-i", str(tmp),
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.0",
+        "-preset", "medium", "-crf", "19",
+        "-fps_mode", "cfr", "-r", str(FPS),
+        "-g", str(FPS * 2), "-keyint_min", str(FPS), "-sc_threshold", "0",
+        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k",
+        "-movflags", "+faststart", str(out),
+    )
+    shutil.rmtree(frames, ignore_errors=True)
+    ART.mkdir(parents=True, exist_ok=True)
+    (ART / f"taxi_and_fly_spot_{slug.replace('-', '_')}.mp4").write_bytes(out.read_bytes())
+    print("Wrote", out, round(duration(out), 2), "s")
+    return out
+
+
+async def main() -> int:
+    BUILD.mkdir(parents=True, exist_ok=True)
+    for spot in SPOTS:
+        await build(spot)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(asyncio.run(main()))

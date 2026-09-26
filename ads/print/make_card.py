@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import qrcode
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent
 META = ROOT.parent / "meta"
@@ -70,6 +70,8 @@ def logo_lettering() -> Image.Image:
         (r, g, b, 255) if max(r, g, b) > 110 else (0, 0, 0, 0)
         for r, g, b, a in art.getdata()
     ])
+    # Opening drops the stray corner pixels the rounded frame leaves behind.
+    art.putalpha(art.getchannel("A").filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3)))
     bbox = art.getbbox()
     return art.crop(bbox) if bbox else art
 
