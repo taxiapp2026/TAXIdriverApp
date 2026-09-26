@@ -37,8 +37,8 @@ SHOTS = [
     ("story_03_driver.png", "Ο οδηγός σε περιμένει στην ώρα του", "Your driver is there, on time", "center", 1.12),
     ("story_04_backseat.png", "Κάθεσαι και χαλαρώνεις", "You sit back and relax", "down", 1.10),
     ("story_05_highway.png", "Ο δρόμος για το αεροδρόμιο", "The road to the airport", "left", 1.08),
-    ("story_06_terminal_arrive.png", "Φτάνεις με άνεση", "You arrive with time to spare", "center", 1.11),
-    ("story_07_handover.png", "Καλό ταξίδι", "Have a good trip", "up", 1.10),
+    ("story_06b_terminal.png", "Φτάνεις με άνεση", "You arrive with time to spare", "center", 1.11),
+    ("story_07b_wave.png", "Καλό ταξίδι", "Have a good trip", "up", 1.10),
     ("story_08_walking_in.png", "Χωρίς login. Χωρίς άγχος.", "No login. No stress.", "center", 1.12),
 ]
 
