@@ -32,32 +32,22 @@ GOLD = (255, 210, 40)
 WHITE = (242, 242, 242)
 GREY = (170, 170, 170)
 
-EL = {
-    "out": OUT / "taxi-and-fly-card-el.png",
-    "art": ART / "taxi_and_fly_karta_el.png",
+# One-sided card, so every line carries both languages: Greek first, English under it.
+CARD = {
+    "out": OUT / "taxi-and-fly-card.png",
+    "art": ART / "taxi_and_fly_karta.png",
     "title": "Taxi and Fly",
-    "subtitle": "Η πτήση σου ξεκινάει από την πόρτα σου",
+    "tagline": (
+        "Η πτήση σου ξεκινάει από την πόρτα σου",
+        "Your flight starts at your front door",
+    ),
     "bullets": [
-        "Κλείνεις εύκολα ταξί από και προς το αεροδρόμιο",
-        "Χωρίς login, χωρίς εγγραφή",
-        "Καλές τιμές",
+        ("Κλείνεις εύκολα ταξί από και προς το αεροδρόμιο", "Book a taxi to and from the airport"),
+        ("Χωρίς login, χωρίς εγγραφή", "No login, no sign-up"),
+        ("Καλές τιμές", "Good prices"),
     ],
-    "cta": "Σκάναρε με την κάμερα",
-    "pill": "Κλείσε τώρα, πέτα ήσυχος",
-}
-
-EN = {
-    "out": OUT / "taxi-and-fly-card-en.png",
-    "art": ART / "taxi_and_fly_card_en.png",
-    "title": "Taxi and Fly",
-    "subtitle": "Your flight starts at your front door",
-    "bullets": [
-        "Book a taxi to and from the airport, easily",
-        "No login, no sign-up",
-        "Good prices",
-    ],
-    "cta": "Scan with your camera",
-    "pill": "Book now, fly relaxed",
+    "cta": ("Σκάναρε με την κάμερα", "Scan with your camera"),
+    "pill": ("Κλείσε τώρα, πέτα ήσυχος", "Book now, fly relaxed"),
 }
 
 
@@ -119,49 +109,56 @@ def build(cfg: dict) -> None:
     draw = ImageDraw.Draw(card)
     draw.rounded_rectangle((10, 10, W - 11, H - 11), radius=34, outline=GOLD, width=4)
 
-    f_title = ImageFont.truetype(FONT_BOLD, 56)
-    f_sub = ImageFont.truetype(FONT_REG, 25)
-    f_bullet = ImageFont.truetype(FONT_REG, 26)
-    f_cta = ImageFont.truetype(FONT_BOLD, 24)
-    f_url = ImageFont.truetype(FONT_REG, 22)
+    f_title = ImageFont.truetype(FONT_BOLD, 50)
+    f_tag_el = ImageFont.truetype(FONT_REG, 24)
+    f_tag_en = ImageFont.truetype(FONT_REG, 19)
+    f_el = ImageFont.truetype(FONT_REG, 24)
+    f_en = ImageFont.truetype(FONT_REG, 18)
+    f_cta = ImageFont.truetype(FONT_BOLD, 19)
+    f_cta_en = ImageFont.truetype(FONT_REG, 16)
+    f_pill = ImageFont.truetype(FONT_BOLD, 24)
+    f_url = ImageFont.truetype(FONT_REG, 21)
 
     # Right column: QR on a white plate so it scans off dark card stock.
-    qr_size = 290
-    qr_x, qr_y = W - qr_size - 54, 62
-    card.paste(Image.new("RGB", (qr_size + 28, qr_size + 28), (255, 255, 255)), (qr_x - 14, qr_y - 14))
+    qr_size = 250
+    qr_x, qr_y = W - qr_size - 56, 92
+    card.paste(Image.new("RGB", (qr_size + 26, qr_size + 26), (255, 255, 255)), (qr_x - 13, qr_y - 13))
     card.paste(qr_image(qr_size), (qr_x, qr_y))
-    cta_w = draw.textlength(cfg["cta"], font=f_cta)
-    draw.text((qr_x + (qr_size - cta_w) / 2, qr_y + qr_size + 30), cfg["cta"], font=f_cta, fill=GOLD)
+    cta_el, cta_en = cfg["cta"]
+    mid = qr_x + qr_size / 2
+    draw.text((mid - draw.textlength(cta_el, font=f_cta) / 2, qr_y + qr_size + 26), cta_el, font=f_cta, fill=GOLD)
+    draw.text((mid - draw.textlength(cta_en, font=f_cta_en) / 2, qr_y + qr_size + 54), cta_en, font=f_cta_en, fill=GREY)
 
-    # Left column: brand, then what the app actually does.
+    # Left column: brand, then what the app does, each line in both languages.
     left = 58
     col_w = qr_x - 46 - left
-    mark = badge(132)
-    card.paste(mark, (left, 58), mark)
-    draw.text((left + 152, 74), cfg["title"], font=f_title, fill=GOLD)
+    mark = badge(116)
+    card.paste(mark, (left, 42), mark)
+    tag_el, tag_en = cfg["tagline"]
+    draw.text((left + 134, 44), cfg["title"], font=f_title, fill=GOLD)
+    draw.text((left + 136, 112), tag_el, font=f_tag_el, fill=WHITE)
+    draw.text((left + 136, 146), tag_en, font=f_tag_en, fill=GREY)
 
-    y = 214
-    for line in wrap(draw, cfg["subtitle"], f_sub, col_w):
-        draw.text((left, y), line, font=f_sub, fill=GREY)
-        y += 34
-    y += 30
+    y = 216
+    for bullet_el, bullet_en in cfg["bullets"]:
+        draw.ellipse((left + 4, y + 11, left + 16, y + 23), fill=GOLD)
+        for row in wrap(draw, bullet_el, f_el, col_w - 34):
+            draw.text((left + 34, y), row, font=f_el, fill=WHITE)
+            y += 31
+        for row in wrap(draw, bullet_en, f_en, col_w - 34):
+            draw.text((left + 34, y), row, font=f_en, fill=GREY)
+            y += 24
+        y += 16
 
-    for bullet in cfg["bullets"]:
-        rows = wrap(draw, bullet, f_bullet, col_w - 34)
-        draw.ellipse((left + 4, y + 12, left + 16, y + 24), fill=GOLD)
-        for row in rows:
-            draw.text((left + 34, y), row, font=f_bullet, fill=WHITE)
-            y += 34
-        y += 20
-
-    f_pill = ImageFont.truetype(FONT_BOLD, 26)
-    pill_w = draw.textlength(cfg["pill"], font=f_pill) + 56
-    pill_y = H - 168
-    draw.rounded_rectangle((left, pill_y, left + pill_w, pill_y + 66), radius=33, fill=GOLD)
-    draw.text((left + 28, pill_y + 17), cfg["pill"], font=f_pill, fill=(12, 12, 12))
+    pill_el, pill_en = cfg["pill"]
+    pill_w = draw.textlength(pill_el, font=f_pill) + 52
+    pill_y = 498
+    draw.rounded_rectangle((left, pill_y, left + pill_w, pill_y + 60), radius=30, fill=GOLD)
+    draw.text((left + 26, pill_y + 15), pill_el, font=f_pill, fill=(12, 12, 12))
+    draw.text((left + pill_w + 22, pill_y + 20), pill_en, font=f_en, fill=GREY)
 
     url_w = draw.textlength(APP_URL, font=f_url)
-    draw.text(((W - url_w) / 2, H - 58), APP_URL, font=f_url, fill=GREY)
+    draw.text(((W - url_w) / 2, H - 56), APP_URL, font=f_url, fill=GREY)
 
     cfg["out"].parent.mkdir(parents=True, exist_ok=True)
     card.save(cfg["out"], dpi=(300, 300))
@@ -173,8 +170,7 @@ def build(cfg: dict) -> None:
 def main() -> int:
     if not LOGO.exists():
         raise SystemExit(f"missing logo {LOGO}")
-    build(EL)
-    build(EN)
+    build(CARD)
     return 0
 
 
