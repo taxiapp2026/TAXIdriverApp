@@ -29,7 +29,7 @@ from build_video import FONT, duration, ff, kenburns, mix  # noqa: E402
 
 EL = {
     "out": ROOT / "taxi-and-fly-athens-to-airport-el.mp4",
-    "art": Path("/opt/cursor/artifacts/taxi_and_fly_icon_el.mp4"),
+    "art": Path("/opt/cursor/artifacts/taxi_and_fly_square_el.mp4"),
     "vo": BUILD / "vo_simple_el",
     "voice": "el-GR-NestorasNeural",
     "rate": "-6%",
@@ -103,35 +103,36 @@ def _knockout_light(src: Image.Image) -> Image.Image:
 
 
 def brand_badge() -> Image.Image:
-    """Yellow ring with the Taxi and Fly icon the user sent."""
-    size = 680
+    """Smaller yellow ring; keep the icon as a white-edged rounded square."""
+    size = 720
     badge = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(badge)
-    draw.ellipse((16, 16, size - 16, size - 16), outline=GOLD + (255,), width=42)
+    # Smaller circle — more inset, thinner stroke.
+    pad = 110
+    draw.ellipse((pad, pad, size - pad, size - pad), outline=GOLD + (255,), width=26)
     icon = Image.open(ICON).convert("RGBA")
-    inner = 500
+    inner = 360
     iw, ih = icon.size
     scale = min(inner / iw, inner / ih)
     fitted = icon.resize((max(1, int(iw * scale)), max(1, int(ih * scale))), Image.Resampling.LANCZOS)
-    pad = Image.new("RGBA", (inner, inner), (8, 8, 8, 255))
-    pad.paste(fitted, ((inner - fitted.width) // 2, (inner - fitted.height) // 2), fitted)
-    mask = Image.new("L", (inner, inner), 0)
-    ImageDraw.Draw(mask).ellipse((0, 0, inner - 1, inner - 1), fill=255)
-    cut = Image.new("RGBA", (inner, inner), (0, 0, 0, 0))
-    cut.paste(pad, (0, 0), mask)
-    badge.alpha_composite(cut, ((size - inner) // 2, (size - inner) // 2))
+    # White rounded-square frame so the corners stay visible.
+    sq = Image.new("RGBA", (fitted.width + 18, fitted.height + 18), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(sq)
+    sd.rounded_rectangle((0, 0, sq.width - 1, sq.height - 1), radius=48, fill=(8, 8, 8, 255), outline=(235, 235, 235, 255), width=6)
+    sq.paste(fitted, (9, 9), fitted)
+    badge.alpha_composite(sq, ((size - sq.width) // 2, (size - sq.height) // 2))
     return badge
 
 
 def brand_slide(phrase: str, dst: Path) -> None:
-    """9:16 card — user logo in the ring + one line of copy. Never a phone."""
+    """9:16 card — square logo in a smaller ring + one line of copy."""
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
     badge = brand_badge()
-    img.paste(badge, ((W - badge.width) // 2, 380), badge)
+    img.paste(badge, ((W - badge.width) // 2, 360), badge)
     f_t = ImageFont.truetype(FONT, 50)
     if phrase and phrase != "Taxi and Fly":
-        _wrapped(draw, phrase, 1140, f_t, WHITE)
+        _wrapped(draw, phrase, 1160, f_t, WHITE)
     img.save(dst)
 
 
