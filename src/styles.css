@@ -345,7 +345,8 @@ textarea {
   font-weight: 700;
 }
 
-.hidden-file {
+.hidden-file,
+.hidden {
   display: none;
 }
 

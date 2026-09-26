@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blendAverages, computeAppAverages, emptyShift, forecastForWeekday, latestAcceptTime, minutesPerRide } from "./stats";
+import { averagesForForecast, blendAverages, computeAppAverages, emptyShift, forecastForWeekday, latestAcceptTime, minutesPerRide } from "./stats";
 import { fromShiftMinutes } from "./time";
 import type { Shift } from "./types";
 
@@ -95,6 +95,24 @@ describe("averages", () => {
 });
 
 describe("forecast", () => {
+  it("falls back to demo data for an app with no real days yet", () => {
+    const realOnlyUber = shiftOn("2026-09-26", {
+      uber: { start: "19:00", leave: "21:30", rides: 10, stuck: true },
+    });
+    const demoFreeNow = shiftOn("2026-09-19", {
+      freenow: { start: "21:40", leave: "00:00", rides: 5 },
+    });
+    demoFreeNow.isDemo = true;
+
+    const freeNow = averagesForForecast([realOnlyUber, demoFreeNow], "freenow", 0);
+    expect(freeNow.source).toBe("demo");
+    expect(fromShiftMinutes(freeNow.averages.avgLeaveMinutes!)).toBe("00:00");
+
+    const uber = averagesForForecast([realOnlyUber, demoFreeNow], "uber", 6);
+    expect(uber.source).toBe("blended");
+    expect(fromShiftMinutes(uber.averages.avgLeaveMinutes!)).toBe("21:30");
+  });
+
   it("builds a next-day plan from the same weekday", () => {
     const shifts = [
       shiftOn("2026-09-05", {

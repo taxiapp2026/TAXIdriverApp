@@ -141,16 +141,10 @@ export function forecastForWeekday(shifts: Shift[], weekday: number): DayForecas
     weekday,
     weekdayLabel: WEEKDAY_LABELS[weekday],
     apps: APP_IDS.map((app) => {
-      const dayAvg = computeAppAverages(shifts, app, weekday);
-      const allAvg = computeAppAverages(shifts, app);
-      const blended = blendAverages(dayAvg, allAvg);
-      let source: ForecastSource = "none";
-      if (dayAvg.samples >= 3) source = "weekday";
-      else if (dayAvg.samples > 0) source = "blended";
-      else if (allAvg.samples > 0) source = "overall";
+      const { averages, source } = averagesForForecast(shifts, app, weekday);
       return {
-        ...blended,
-        latestAcceptMinutes: latestAcceptTime(blended),
+        ...averages,
+        latestAcceptMinutes: latestAcceptTime(averages),
         source,
       } satisfies ForecastApp;
     }),
@@ -161,7 +155,35 @@ export function realShifts(shifts: Shift[]): Shift[] {
   return shifts.filter((shift) => !shift.isDemo);
 }
 
+export function demoShifts(shifts: Shift[]): Shift[] {
+  return shifts.filter((shift) => shift.isDemo);
+}
+
 export function shiftsForStats(shifts: Shift[]): Shift[] {
   const real = realShifts(shifts);
   return real.length ? real : shifts;
+}
+
+export function averagesForForecast(
+  shifts: Shift[],
+  app: AppId,
+  weekday: number,
+): { averages: AppAverages; source: ForecastSource } {
+  const real = realShifts(shifts);
+  const demo = demoShifts(shifts);
+  const dayReal = computeAppAverages(real, app, weekday);
+  const allReal = computeAppAverages(real, app);
+
+  if (dayReal.samples >= 3) return { averages: dayReal, source: "weekday" };
+  if (dayReal.samples > 0) {
+    const fallback = allReal.samples > 0 ? allReal : computeAppAverages(demo, app);
+    return { averages: blendAverages(dayReal, fallback), source: "blended" };
+  }
+  if (allReal.samples > 0) return { averages: allReal, source: "overall" };
+
+  const dayDemo = computeAppAverages(demo, app, weekday);
+  const allDemo = computeAppAverages(demo, app);
+  const blended = blendAverages(dayDemo, allDemo);
+  if (blended.samples > 0) return { averages: blended, source: "demo" };
+  return { averages: blended, source: "none" };
 }

@@ -51,7 +51,7 @@ export interface AppAverages {
   maxLeaveMinutes: number | null;
 }
 
-export type ForecastSource = "weekday" | "blended" | "overall" | "none";
+export type ForecastSource = "weekday" | "blended" | "overall" | "demo" | "none";
 
 export interface ForecastApp extends AppAverages {
   latestAcceptMinutes: number | null;

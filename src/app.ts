@@ -1,6 +1,6 @@
 import { createDemoShifts } from "./demo";
 import { adviseRide } from "./rideCheck";
-import { emptyShift, forecastForWeekday, normalizeShift, realShifts, shiftsForStats } from "./stats";
+import { emptyShift, forecastForWeekday, normalizeShift, realShifts } from "./stats";
 import {
   deleteShift,
   exportPayload,
@@ -59,7 +59,15 @@ function sourceLabel(source: string): string {
   if (source === "weekday") return "ίδια μέρα";
   if (source === "blended") return "ίδια μέρα + γενικός μέσος";
   if (source === "overall") return "γενικός μέσος όρος";
+  if (source === "demo") return "παράδειγμα";
   return "λίγα στοιχεία";
+}
+
+function shiftSummary(shift: Shift): string {
+  return shift.slots
+    .filter((slot) => slot.leaveTime || slot.rides)
+    .map((slot) => `${APP_BY_ID[slot.app].name} ${slot.leaveTime ?? "—"}`)
+    .join(" · ");
 }
 
 export function createApp(root: HTMLElement): void {
@@ -82,6 +90,12 @@ export function createApp(root: HTMLElement): void {
     saveShifts(next);
   }
 
+  function persistShift(shift: Shift, rerender = true): Shift {
+    persist(upsertShift(state.shifts, shift));
+    if (rerender) render();
+    return shiftFor(shift.date);
+  }
+
   function toast(message: string): void {
     state.toast = message;
     window.clearTimeout(toastTimer);
@@ -96,20 +110,25 @@ export function createApp(root: HTMLElement): void {
     return normalizeShift(state.shifts.find((shift) => shift.date === date) ?? emptyShift(date));
   }
 
-  function patchSlot(date: string, app: AppId, patch: Partial<AppSlot>): void {
+  function patchSlot(date: string, app: AppId, patch: Partial<AppSlot>, rerender = true): Shift {
     const shift = shiftFor(date);
     shift.slots = shift.slots.map((slot) => (slot.app === app ? { ...slot, ...patch } : slot));
-    persist(upsertShift(state.shifts, shift));
-    render();
+    persistShift(shift, rerender);
+    return shiftFor(date);
+  }
+
+  function refreshTodaySummary(shift: Shift): void {
+    const summary = shiftSummary(shift);
+    const banner = root.querySelector("[data-role=summary]");
+    if (!banner) return;
+    banner.textContent = summary ? `Σήμερα: ${summary}` : "";
+    banner.classList.toggle("hidden", !summary);
   }
 
   function renderToday(): string {
     const shift = shiftFor(state.selectedDate);
     const weekday = WEEKDAY_LABELS[weekdayOf(state.selectedDate)];
-    const filled = shift.slots.filter((slot) => slot.leaveTime || slot.rides);
-    const summary = filled
-      .map((slot) => `${APP_BY_ID[slot.app].name} ${slot.leaveTime ?? "—"}`)
-      .join(" · ");
+    const summary = shiftSummary(shift);
 
     return `
       <div class="card">
@@ -152,14 +171,13 @@ export function createApp(root: HTMLElement): void {
           `;
         })
         .join("")}
-      ${summary ? `<div class="banner info">Σήμερα: ${escapeHtml(summary)}</div>` : ""}
+      <div class="banner info ${summary ? "" : "hidden"}" data-role="summary">${summary ? `Σήμερα: ${escapeHtml(summary)}` : ""}</div>
       <p class="muted">Αποθηκεύεται μόνο σε αυτή τη συσκευή. Όσο μαζεύεις μέρες, ο μέσος όρος για αύριο γίνεται πιο ακριβής.</p>
     `;
   }
 
   function renderForecast(): string {
-    const statsShifts = shiftsForStats(state.shifts);
-    const forecast = forecastForWeekday(statsShifts, state.forecastWeekday);
+    const forecast = forecastForWeekday(state.shifts, state.forecastWeekday);
     const tomorrow = addDays(todayISO(), 1);
     const isTomorrow = state.forecastWeekday === weekdayOf(tomorrow);
     const nowMinutes = toShiftMinutes(state.checkTime) ?? nowShiftMinutes();
@@ -234,7 +252,6 @@ export function createApp(root: HTMLElement): void {
 
   function renderWeek(): string {
     const days = Array.from({ length: 7 }, (_, index) => addDays(state.weekStart, index));
-    const statsShifts = shiftsForStats(state.shifts);
     const end = addDays(state.weekStart, 6);
 
     return `
@@ -252,7 +269,7 @@ export function createApp(root: HTMLElement): void {
         ${days
           .map((date) => {
             const shift = state.shifts.find((item) => item.date === date);
-            const averages = forecastForWeekday(statsShifts, weekdayOf(date));
+            const averages = forecastForWeekday(state.shifts, weekdayOf(date));
             return `
               <article class="week-day">
                 <div>
@@ -288,7 +305,7 @@ export function createApp(root: HTMLElement): void {
 
     return `
       <div class="card">
-        <h2>${realCount} δικές σου μέρες</h2>
+        <h2>${realCount === 1 ? "1 δική σου μέρα" : `${realCount} δικές σου μέρες`}</h2>
         <p class="muted">Άνοιξε μια μέρα για διόρθωση, ή βγάλε αντίγραφο για να μην χαθούν οι ώρες.</p>
         <div class="small-actions">
           <button class="ghost" data-action="export">Αντίγραφο</button>
@@ -366,13 +383,19 @@ export function createApp(root: HTMLElement): void {
     }
     if (action === "stuck" && target.dataset.app) {
       const slot = shiftFor(state.selectedDate).slots.find((item) => item.app === target.dataset.app);
-      patchSlot(state.selectedDate, target.dataset.app as AppId, { stuck: !slot?.stuck });
+      const next = !slot?.stuck;
+      patchSlot(state.selectedDate, target.dataset.app as AppId, { stuck: next }, false);
+      target.classList.toggle("on", next);
+      target.textContent = next ? "Κόλλησε" : "Κόλλησε;";
       return;
     }
     if (action === "rides" && target.dataset.app) {
       const slot = shiftFor(state.selectedDate).slots.find((item) => item.app === target.dataset.app);
       const next = Math.max(0, (slot?.rides ?? 0) + Number(target.dataset.delta));
-      patchSlot(state.selectedDate, target.dataset.app as AppId, { rides: next });
+      const updated = patchSlot(state.selectedDate, target.dataset.app as AppId, { rides: next }, false);
+      const value = target.parentElement?.querySelector("strong");
+      if (value) value.textContent = String(next);
+      refreshTodaySummary(updated);
       return;
     }
     if (action === "forecast-day") {
@@ -422,8 +445,7 @@ export function createApp(root: HTMLElement): void {
     }
   });
 
-  root.addEventListener("change", (event) => {
-    const target = event.target as HTMLInputElement | HTMLSelectElement;
+  function applyField(target: HTMLInputElement | HTMLSelectElement): void {
     const action = target.dataset.action;
     if (action === "date") {
       state.selectedDate = target.value || todayISO();
@@ -433,9 +455,13 @@ export function createApp(root: HTMLElement): void {
     if ((action === "start" || action === "leave" || action === "notes") && target.dataset.app) {
       const key = action === "start" ? "startTime" : action === "leave" ? "leaveTime" : "notes";
       const value = target.value.trim() || null;
-      patchSlot(state.selectedDate, target.dataset.app as AppId, {
-        [key]: key === "notes" ? target.value : value,
-      });
+      const updated = patchSlot(
+        state.selectedDate,
+        target.dataset.app as AppId,
+        { [key]: key === "notes" ? target.value : value },
+        false,
+      );
+      refreshTodaySummary(updated);
       return;
     }
     if (action === "check-app") {
@@ -446,6 +472,17 @@ export function createApp(root: HTMLElement): void {
     if (action === "check-time") {
       state.checkTime = target.value || currentClock();
       render();
+    }
+  }
+
+  root.addEventListener("change", (event) => {
+    applyField(event.target as HTMLInputElement | HTMLSelectElement);
+  });
+
+  root.addEventListener("input", (event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.dataset.action === "start" || target.dataset.action === "leave") {
+      applyField(target);
     }
   });
 
