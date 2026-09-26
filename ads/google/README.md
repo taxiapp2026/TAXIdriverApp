@@ -1,6 +1,6 @@
 # Taxi and Fly — Google Ads video
 
-Έτοιμο κάθετο βίντεο 9:16 (1080×1920, ~46"), με φυσική ανδρική ελληνική αφήγηση (Nestoras).
+Έτοιμο κάθετο βίντεο 9:16 (1080×1920, ~46"), με φυσική ανδρική ελληνική αφήγηση (Nestoras) και ήπια πρωτότυπη μουσική από πίσω.
 
 - `taxi-and-fly-google-ads-9x16.mp4` — ελληνικό σποτ
 - `taxi-and-fly-google-ads-9x16-en.mp4` — English version (to Athens / from airport)
