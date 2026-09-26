@@ -38,9 +38,9 @@ EL = {
     "title": "Taxi and Fly",
     "subtitle": "Η εφαρμογή για ταξί από και προς το αεροδρόμιο Αθηνών",
     "bullets": [
-        "Κλείνεις ταξί σε δευτερόλεπτα",
+        "Κλείνεις εύκολα ταξί",
         "Χωρίς login, χωρίς εγγραφή",
-        "Δώρο οι αποσκευές και τα διόδια",
+        "Καλές τιμές",
     ],
     "cta": "Σκάναρε με την κάμερα",
     "pill": "Κλείσε το ταξί σου τώρα",
@@ -52,9 +52,9 @@ EN = {
     "title": "Taxi and Fly",
     "subtitle": "The app for taxis to and from Athens Airport",
     "bullets": [
-        "Book a taxi in seconds",
+        "Book a taxi easily",
         "No login, no sign-up",
-        "Free luggage and tolls",
+        "Good prices",
     ],
     "cta": "Scan with your camera",
     "pill": "Book your taxi now",
