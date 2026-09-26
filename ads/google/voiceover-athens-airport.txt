@@ -1,12 +1,10 @@
 Taxi and Fly.
-Μια τόσο απλή εφαρμογή.
+Μια τόσο απλή εφαρμογή για μετακινήσεις από και προς το αεροδρόμιο.
 Χωρίς login.
-Από και προς το αεροδρόμιο.
 Δοκίμασέ την.
 
 English
 Taxi and Fly.
-Such a simple app.
+Such a simple app for trips to and from the airport.
 No login.
-To and from the airport.
 Try it.
