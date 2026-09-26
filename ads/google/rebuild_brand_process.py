@@ -29,17 +29,18 @@ from build_video import FONT, duration, ff, kenburns, mix  # noqa: E402
 
 EL = {
     "out": ROOT / "taxi-and-fly-athens-to-airport-el.mp4",
-    "art": Path("/opt/cursor/artifacts/taxi_and_fly_metakiniseis_el.mp4"),
+    "art": Path("/opt/cursor/artifacts/taxi_and_fly_arga_kathara_el.mp4"),
     "vo": BUILD / "vo_simple_el",
     "voice": "el-GR-NestorasNeural",
-    "rate": "-6%",
+    "rate": "-14%",
     "spoken": (
-        "Taxi and Fly. Μια τόσο απλή εφαρμογή για μετακινήσεις "
-        "από και προς το αεροδρόμιο. Χωρίς login. Δοκιμασέ την."
+        "Taxi and Fly. Μια τόσο απλή εφαρμογή για μετακινήσεις. "
+        "Από και προς το αεροδρόμιο. Χωρίς login. Δοκιμασέ την."
     ),
     "slides": [
         "Taxi and Fly",
-        "Μια τόσο απλή εφαρμογή για μετακινήσεις από και προς το αεροδρόμιο",
+        "Μια τόσο απλή εφαρμογή για μετακινήσεις",
+        "Από και προς το αεροδρόμιο",
         "Χωρίς login",
         "Δοκίμασέ την",
     ],
@@ -50,11 +51,12 @@ EN = {
     "art": Path("/opt/cursor/artifacts/taxi_and_fly_simple_nat_en.mp4"),
     "vo": BUILD / "vo_simple_en",
     "voice": "en-US-AndrewNeural",
-    "rate": "-4%",
-    "spoken": "Taxi and Fly. Such a simple app for trips to and from the airport. No login. Try it.",
+    "rate": "-10%",
+    "spoken": "Taxi and Fly. Such a simple app for your trips. To and from the airport. No login. Try it.",
     "slides": [
         "Taxi and Fly",
-        "Such a simple app for trips to and from the airport",
+        "Such a simple app for your trips",
+        "To and from the airport",
         "No login",
         "Try it",
     ],
@@ -182,6 +184,37 @@ async def speak_story(text: str, dst: Path, voice: str, rate: str) -> list[dict]
     raise RuntimeError(last_err)
 
 
+def space_out(vo: Path, marks: list[dict], gap: float, dst: Path) -> list[dict]:
+    """Re-cut the take with a breath between sentences so it lands slower."""
+    total = duration(vo)
+    bounds = [m["t"] for m in marks] + [total]
+    parts = []
+    for i in range(len(marks)):
+        seg = BUILD / f"{dst.stem}_seg{i}.wav"
+        ff(
+            "-i", str(vo), "-ss", f"{bounds[i]:.3f}", "-to", f"{bounds[i + 1]:.3f}",
+            "-ac", "1", "-ar", "44100", str(seg),
+        )
+        parts.append(seg)
+    pause = BUILD / f"{dst.stem}_pause.wav"
+    ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{gap:.3f}", str(pause))
+    lst = BUILD / f"{dst.stem}_join.txt"
+    joined: list[Path] = []
+    for i, seg in enumerate(parts):
+        joined.append(seg)
+        if i < len(parts) - 1:
+            joined.append(pause)
+    lst.write_text("".join(f"file '{p.resolve()}'\n" for p in joined))
+    ff("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(dst))
+    spaced: list[dict] = []
+    acc = 0.0
+    for i, m in enumerate(marks):
+        seg_len = duration(parts[i])
+        spaced.append({"t": acc, "dur": seg_len, "text": m["text"]})
+        acc += seg_len + (gap if i < len(parts) - 1 else 0.0)
+    return spaced
+
+
 def mix_vo(vo: Path, bed: Path, total: float, dst: Path) -> None:
     ff(
         "-i", str(bed), "-i", str(vo),
@@ -203,12 +236,15 @@ async def build(cfg: dict) -> None:
     mp3 = vodir / "story.mp3"
     print("TTS", cfg["spoken"])
     marks = await speak_story(cfg["spoken"], mp3, cfg["voice"], cfg["rate"])
+    spaced_vo = vodir / "story_spaced.wav"
+    marks = space_out(mp3, marks, cfg.get("gap", 0.55), spaced_vo)
+    mp3 = spaced_vo
     print("marks", marks)
     vo_sec = duration(mp3)
     starts = [0.0]
     for mark in marks[1:]:
         starts.append(max(mark["t"], starts[-1] + 0.4))
-    ends = starts[1:] + [vo_sec + 0.75]
+    ends = starts[1:] + [vo_sec + 0.9]
     durs = [max(e - s, 1.2) for s, e in zip(starts, ends)]
     clips = []
     for i, (slide, sec) in enumerate(zip(cfg["slides"], durs)):
