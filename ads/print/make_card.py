@@ -36,28 +36,28 @@ EL = {
     "out": OUT / "taxi-and-fly-card-el.png",
     "art": ART / "taxi_and_fly_karta_el.png",
     "title": "Taxi and Fly",
-    "subtitle": "Η εφαρμογή για ταξί από και προς το αεροδρόμιο Αθηνών",
+    "subtitle": "Η πτήση σου ξεκινάει από την πόρτα σου",
     "bullets": [
-        "Κλείνεις εύκολα ταξί",
+        "Κλείνεις εύκολα ταξί από και προς το αεροδρόμιο",
         "Χωρίς login, χωρίς εγγραφή",
         "Καλές τιμές",
     ],
     "cta": "Σκάναρε με την κάμερα",
-    "pill": "Κλείσε το ταξί σου τώρα",
+    "pill": "Κλείσε τώρα, πέτα ήσυχος",
 }
 
 EN = {
     "out": OUT / "taxi-and-fly-card-en.png",
     "art": ART / "taxi_and_fly_card_en.png",
     "title": "Taxi and Fly",
-    "subtitle": "The app for taxis to and from Athens Airport",
+    "subtitle": "Your flight starts at your front door",
     "bullets": [
-        "Book a taxi easily",
+        "Book a taxi to and from the airport, easily",
         "No login, no sign-up",
         "Good prices",
     ],
     "cta": "Scan with your camera",
-    "pill": "Book your taxi now",
+    "pill": "Book now, fly relaxed",
 }
 
 
