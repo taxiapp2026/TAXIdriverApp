@@ -23,19 +23,15 @@ import sys
 
 sys.path.insert(0, str(ROOT))
 from add_pretty_music import pretty_music  # noqa: E402
-from build_video import FONT, FONT_REG, duration, ff, kenburns, mix, xfade_concat  # noqa: E402
+from build_video import FONT, duration, ff, kenburns, mix  # noqa: E402
 
 EL = {
     "out": ROOT / "taxi-and-fly-athens-to-airport-el.mp4",
-    "art": Path("/opt/cursor/artifacts/taxi_and_fly_aplo_el.mp4"),
+    "art": Path("/opt/cursor/artifacts/taxi_and_fly_simple_nat_el.mp4"),
     "vo": BUILD / "vo_simple_el",
     "voice": "el-GR-NestorasNeural",
-    "lines": [
-        ("Μια τόσο απλή εφαρμογή.", "-14%"),
-        ("Χωρίς login.", "-14%"),
-        ("Από και προς το αεροδρόμιο.", "-20%"),
-        ("Δοκίμασέ την.", "-12%"),
-    ],
+    "rate": "-6%",
+    "spoken": "Μια τόσο απλή εφαρμογή. Χωρίς login. Από και προς το αεροδρόμιο. Δοκίμασέ την.",
     "slides": [
         "Μια τόσο απλή εφαρμογή",
         "Χωρίς login",
@@ -46,15 +42,11 @@ EL = {
 
 EN = {
     "out": ROOT / "taxi-and-fly-athens-to-airport-en.mp4",
-    "art": Path("/opt/cursor/artifacts/taxi_and_fly_aplo_en.mp4"),
+    "art": Path("/opt/cursor/artifacts/taxi_and_fly_simple_nat_en.mp4"),
     "vo": BUILD / "vo_simple_en",
     "voice": "en-US-AndrewNeural",
-    "lines": [
-        ("Such a simple app.", "-12%"),
-        ("No login.", "-12%"),
-        ("To and from the airport.", "-16%"),
-        ("Try it.", "-10%"),
-    ],
+    "rate": "-4%",
+    "spoken": "Such a simple app. No login. To and from the airport. Try it.",
     "slides": [
         "Such a simple app",
         "No login",
@@ -112,16 +104,33 @@ def brand_slide(phrase: str, dst: Path) -> None:
     img.save(dst)
 
 
-async def speak(text: str, dst: Path, voice: str, rate: str) -> None:
+TICKS = 10_000_000.0
+
+
+async def speak_story(text: str, dst: Path, voice: str, rate: str) -> list[dict]:
+    """One natural take. Sentence timings drive the pictures."""
     dst.parent.mkdir(parents=True, exist_ok=True)
     last_err: Exception | None = None
     for attempt in range(8):
         try:
-            comm = edge_tts.Communicate(text, voice, rate=rate, pitch="-1Hz")
-            await comm.save(str(dst))
-            if dst.exists() and dst.stat().st_size > 2000:
-                return
-            raise RuntimeError("empty")
+            comm = edge_tts.Communicate(
+                text, voice, rate=rate, pitch="+0Hz", boundary="SentenceBoundary"
+            )
+            audio = bytearray()
+            marks: list[dict] = []
+            async for chunk in comm.stream():
+                if chunk["type"] == "audio":
+                    audio.extend(chunk["data"])
+                elif chunk["type"] == "SentenceBoundary":
+                    marks.append({
+                        "t": chunk["offset"] / TICKS,
+                        "dur": chunk["duration"] / TICKS,
+                        "text": chunk["text"],
+                    })
+            if len(audio) < 2000:
+                raise RuntimeError("empty")
+            dst.write_bytes(bytes(audio))
+            return marks
         except Exception as exc:  # noqa: BLE001
             last_err = exc
             print("retry", dst.name, exc)
@@ -129,26 +138,17 @@ async def speak(text: str, dst: Path, voice: str, rate: str) -> None:
     raise RuntimeError(last_err)
 
 
-def mix_vo(starts: list[float], vo_files: list[Path], bed: Path, total: float, dst: Path) -> None:
-    args: list[str] = ["-i", str(bed)]
-    for p in vo_files:
-        args += ["-i", str(p)]
-    parts = ["[0:a]volume=0.20,aformat=sample_rates=44100:channel_layouts=stereo[bed]"]
-    mix_in = "[bed]"
-    for i, start in enumerate(starts, start=1):
-        ms = int(round(start * 1000))
-        parts.append(
-            f"[{i}:a]aformat=sample_rates=44100:channel_layouts=stereo,"
-            f"adelay={ms}|{ms},volume=1.35[v{i}]"
-        )
-        mix_in += f"[v{i}]"
-    n = 1 + len(vo_files)
-    parts.append(
-        f"{mix_in}amix=inputs={n}:duration=first:dropout_transition=0:normalize=0,"
-        f"alimiter=limit=0.95,atrim=0:{total:.3f},asetpts=PTS-STARTPTS[a]"
-    )
+def mix_vo(vo: Path, bed: Path, total: float, dst: Path) -> None:
     ff(
-        *args, "-filter_complex", ";".join(parts), "-map", "[a]",
+        "-i", str(bed), "-i", str(vo),
+        "-filter_complex",
+        "[0:a]volume=0.16,aformat=sample_rates=44100:channel_layouts=stereo[bed];"
+        "[1:a]highpass=f=80,equalizer=f=160:t=q:w=1:g=1.8,equalizer=f=2600:t=q:w=1:g=1.2,"
+        "acompressor=threshold=-18dB:ratio=1.8:attack=15:release=140,"
+        "aformat=sample_rates=44100:channel_layouts=stereo,volume=1.18[v];"
+        f"[bed][v]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,"
+        f"alimiter=limit=0.95,atrim=0:{total:.3f},asetpts=PTS-STARTPTS[a]",
+        "-map", "[a]",
         "-t", f"{total:.3f}", "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k", str(dst),
     )
 
@@ -156,36 +156,33 @@ def mix_vo(starts: list[float], vo_files: list[Path], bed: Path, total: float, d
 async def build(cfg: dict) -> None:
     vodir: Path = cfg["vo"]
     vodir.mkdir(parents=True, exist_ok=True)
-    vo_files = []
+    mp3 = vodir / "story.mp3"
+    print("TTS", cfg["spoken"])
+    marks = await speak_story(cfg["spoken"], mp3, cfg["voice"], cfg["rate"])
+    print("marks", marks)
+    vo_sec = duration(mp3)
+    starts = [0.0]
+    for mark in marks[1:]:
+        starts.append(max(mark["t"], starts[-1] + 0.4))
+    ends = starts[1:] + [vo_sec + 0.75]
+    durs = [max(e - s, 1.2) for s, e in zip(starts, ends)]
     clips = []
-    durs = []
-    for i, (line, slide) in enumerate(zip(cfg["lines"], cfg["slides"])):
-        text, rate = line
-        mp3 = vodir / f"line_{i:02d}.mp3"
-        print("TTS", text)
-
-        await speak(text, mp3, cfg["voice"], rate)
-        vo_files.append(mp3)
-        sec = duration(mp3) + 0.85
-        durs.append(sec)
+    for i, (slide, sec) in enumerate(zip(cfg["slides"], durs)):
         png = BUILD / f"brand_{cfg['out'].stem}_{i}.png"
         brand_slide(slide, png)
         clip = BUILD / f"brand_{cfg['out'].stem}_{i}.mp4"
-        kenburns(png, clip, sec, 1.06, "center")
+        kenburns(png, clip, sec, 1.05, "center")
         clips.append(clip)
 
     silent = BUILD / f"brand_{cfg['out'].stem}_silent.mp4"
-    xfade_concat(clips, silent, fade=0.18)
-    starts = [0.0]
-    acc = durs[0]
-    for d in durs[1:]:
-        starts.append(max(acc - 0.18, 0.05))
-        acc = acc + d - 0.18
-    total = max(acc, duration(silent))
+    lst = BUILD / f"brand_{cfg['out'].stem}_concat.txt"
+    lst.write_text("".join(f"file '{c.resolve()}'\n" for c in clips))
+    ff("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(silent))
+    total = duration(silent)
     bed = BUILD / f"brand_{cfg['out'].stem}_bed.wav"
     pretty_music(total + 0.4, bed)
     mix_a = BUILD / f"brand_{cfg['out'].stem}_mix.m4a"
-    mix_vo(starts, vo_files, bed, total + 0.05, mix_a)
+    mix_vo(mp3, bed, total + 0.05, mix_a)
     tmp = BUILD / f"brand_{cfg['out'].stem}_tmp.mp4"
     mix(silent, mix_a, tmp)
     ff(

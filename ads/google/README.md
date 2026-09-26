@@ -4,7 +4,7 @@
 
 - `taxi-and-fly-google-ads-9x16.mp4` — ελληνικό σποτ
 - `taxi-and-fly-google-ads-9x16-en.mp4` — English version (to Athens / from airport)
-- `taxi-and-fly-athens-to-airport-el.mp4` — απλό σποτ: εικόνα Taxi and Fly, χωρίς κινητό, καθαρά λόγια
+- `taxi-and-fly-athens-to-airport-el.mp4` — απλό σποτ: εικόνα Taxi and Fly, χωρίς κινητό, μία φυσική ανάγνωση
 - `taxi-and-fly-athens-to-airport-en.mp4` — English brand-only version (logo + words, no phone)
 - `voiceover-en.txt` — English voiceover
 - `voiceover-ath-en.txt` — Athens-to-airport English lines
