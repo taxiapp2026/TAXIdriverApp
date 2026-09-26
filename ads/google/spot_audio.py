@@ -68,6 +68,88 @@ def logo_sting(seconds: float, hit: float, dst: Path) -> None:
     write_wav(dst, out)
 
 
+def reggae_music(seconds: float, dst: Path) -> None:
+    """Sunny original reggae: one-drop drums, offbeat skank, round bass."""
+    n = int(SR * seconds)
+    out = np.zeros(n)
+    bpm = 76.0
+    beat = 60.0 / bpm
+    bar = beat * 4
+
+    def place(buf: np.ndarray, at: float, sound: np.ndarray) -> None:
+        j0 = int(at * SR)
+        if j0 >= len(buf) or j0 < 0:
+            return
+        leng = min(len(sound), len(buf) - j0)
+        buf[j0 : j0 + leng] += sound[:leng]
+
+    def env(length: float, decay: float) -> tuple[np.ndarray, np.ndarray]:
+        leng = int(length * SR)
+        tt = np.linspace(0, length, leng, False)
+        return tt, np.exp(-decay * tt)
+
+    # A – E – F#m – D, one bar each.
+    progression = [
+        (110.00, (440.00, 554.37, 659.25)),
+        (82.41, (415.30, 493.88, 659.25)),
+        (92.50, (440.00, 554.37, 739.99)),
+        (73.42, (440.00, 587.33, 739.99)),
+    ]
+
+    bars = int(seconds / bar) + 1
+    for b in range(bars):
+        t0 = b * bar
+        if t0 >= seconds:
+            break
+        root, chord = progression[b % len(progression)]
+
+        # Warm organ held across the bar, so the groove never falls silent.
+        hold = min(bar * 1.02, seconds - t0)
+        if hold > 0.05:
+            tt = np.linspace(0, hold, int(hold * SR), False)
+            shape = np.minimum(tt / 0.12, 1.0) * np.minimum((hold - tt) / 0.20, 1.0)
+            organ = sum(0.030 * np.sin(2 * math.pi * f * 0.5 * tt) for f in chord)
+            organ += 0.020 * np.sin(2 * math.pi * root * 2 * tt)
+            place(out, t0, organ * np.clip(shape, 0, 1))
+
+        # Offbeat skank on the "and" of every beat — the reggae chop.
+        for k in range(4):
+            at = t0 + k * beat + beat / 2
+            tt, e = env(0.30, 16.0)
+            stab = sum(0.05 * np.sin(2 * math.pi * f * tt) for f in chord)
+            stab += 0.018 * np.sin(2 * math.pi * chord[0] * 0.5 * tt)
+            place(out, at, stab * e)
+
+        # Bass riff: root, root, fifth, root — round and dry.
+        for off, ratio in ((0.0, 1.0), (1.0, 2.0), (1.5, 1.0), (2.5, 1.5), (3.0, 1.0)):
+            tt, e = env(0.52, 5.2)
+            f = root * ratio
+            tone = (0.34 * np.sin(2 * math.pi * f * tt) + 0.07 * np.sin(2 * math.pi * f * 2 * tt))
+            place(out, t0 + off * beat, tone * e * np.minimum(tt / 0.012, 1.0))
+
+        # One drop: kick and snare land together on beat three.
+        tt, e = env(0.42, 13.0)
+        kick = 0.42 * np.sin(2 * math.pi * (58 + 70 * np.exp(-42 * tt)) * tt) * e
+        place(out, t0 + 2 * beat, kick)
+
+        rng = np.random.default_rng(100 + b)
+        tt, e = env(0.20, 26.0)
+        noise = rng.normal(0, 1, len(tt))
+        snare = 0.13 * (noise - np.convolve(noise, np.ones(12) / 12, mode="same")) * e
+        place(out, t0 + 2 * beat, snare)
+
+        # Hats on the eighths, softer on the downbeats.
+        for k in range(8):
+            tt, e = env(0.07, 70.0)
+            hn = rng.normal(0, 1, len(tt))
+            hat = 0.035 * (hn - np.convolve(hn, np.ones(4) / 4, mode="same")) * e
+            place(out, t0 + k * beat / 2, hat * (1.0 if k % 2 else 0.6))
+
+    t = np.linspace(0, seconds, n, False)
+    fade = np.minimum(np.minimum(t / 1.2, 1.0), np.minimum((seconds - t) / 2.0, 1.0))
+    write_wav(dst, out * np.clip(fade, 0, 1) * 0.72)
+
+
 def plain_music(seconds: float, dst: Path) -> None:
     """Brighter plucked bed for the versions with no voice. Not a known song."""
     n = int(SR * seconds)
