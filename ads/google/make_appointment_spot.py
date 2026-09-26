@@ -9,6 +9,7 @@ traveller. Reggae bed that stops dead when the logo lands.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import shutil
 import sys
 import time
@@ -32,7 +33,7 @@ from spot_audio import logo_sting, reggae_music  # noqa: E402
 W, H, FPS = 1080, 1920, 30
 FADE = 0.35
 LEAD = 0.35          # beat of picture before a line starts
-TAIL = 0.55          # beat of picture after it ends
+TAIL = 0.40          # beat of picture after it ends
 LINE_GAP = 0.32      # pause between two lines inside one shot
 
 # Only two Greek neural voices exist, so the driver is the narrator's voice
@@ -42,28 +43,31 @@ DRIVER = ("el-GR-NestorasNeural", "-2%", "-14Hz")
 WOMAN = ("el-GR-AthinaNeural", "-4%", "+0Hz")
 
 # image, pan, zoom, minimum seconds, lines spoken over it, hard cut from previous
+#
+# Shots inside a scene cut straight. Dissolving two photographs of the same
+# person makes the faces and hands morph into each other, so the only
+# cross-fades left are the jumps between scenes.
 SHOTS = [
-    ("ap_01_living.png", "center", 1.08, 2.4, [(NARR, "Δύο μέρες πριν το ταξίδι.")], False),
-    ("ap_02_coffee.png", "left", 1.10, 1.7, [], False),
-    ("ap_03_suitcase_empty.png", "down", 1.07, 1.7, [], False),
-    ("ap_04_phone.png", "center", 1.09, 2.4, [(NARR, "Ανοίγει την εφαρμογή και κλείνει ραντεβού.")], False),
-    ("ap_05_phone_down.png", "right", 1.10, 2.0, [(NARR, "Χωρίς εγγραφή, χωρίς κωδικούς.")], False),
-    ("ap_06_looking_out.png", "up", 1.08, 2.0, [], False),
-    # Locked-off trio, joined by hard cuts: dissolving this short a shot just
-    # leaves the two suitcases transparent on top of each other.
-    ("ap_03_suitcase_empty.png", "still", 1.02, 1.2, [], False),
-    ("ap_07_suitcase_half.png", "still", 1.02, 1.2, [], True),
-    ("ap_08_suitcase_ready.png", "still", 1.02, 1.4, [], True),
-    ("ap_09_door_taxi.png", "center", 1.09, 2.1, [], False),
-    ("ap_10_driver.png", "center", 1.08, 2.2, [(DRIVER, "Καλημέρα σας! Taxi and Fly, για το αεροδρόμιο.")], False),
+    ("ap_01_living.png", "center", 1.08, 2.2, [(NARR, "Δύο μέρες πριν το ταξίδι.")], False),
+    ("ap_02_coffee.png", "left", 1.10, 1.4, [], True),
+    ("ap_03_suitcase_empty.png", "down", 1.07, 1.4, [], True),
+    ("ap_04_phone.png", "center", 1.09, 2.2, [(NARR, "Ανοίγει την εφαρμογή και κλείνει ραντεβού.")], False),
+    ("ap_05_phone_down.png", "right", 1.10, 1.9, [(NARR, "Χωρίς εγγραφή, χωρίς κωδικούς.")], True),
+    ("ap_06_looking_out.png", "up", 1.08, 1.8, [], True),
+    # Locked-off trio: the same corner as two days go by.
+    ("ap_03_suitcase_empty.png", "still", 1.02, 1.1, [], False),
+    ("ap_07_suitcase_half.png", "still", 1.02, 1.1, [], True),
+    ("ap_08_suitcase_ready.png", "still", 1.02, 1.3, [], True),
+    ("ap_09_door_taxi.png", "center", 1.09, 1.8, [], False),
+    ("ap_10_driver.png", "center", 1.08, 2.2, [(DRIVER, "Καλημέρα σας! Taxi and Fly, για το αεροδρόμιο.")], True),
     ("ap_11_luggage.png", "center", 1.08, 2.2, [
         (WOMAN, "Καλημέρα. Ακριβώς στην ώρα σας."),
         (DRIVER, "Όπως το κλείσατε."),
-    ], False),
-    ("ap_12_road.png", "left", 1.07, 2.2, [(NARR, "Τιμή ταξιμέτρου.")], False),
-    ("ap_13_backseat.png", "center", 1.09, 2.2, [(NARR, "Αποσκευές και διόδια δώρο.")], False),
-    ("ap_14_departures.png", "right", 1.07, 1.8, [], False),
-    ("ap_15_wave.png", "center", 1.09, 2.1, [(DRIVER, "Καλό ταξίδι!")], False),
+    ], True),
+    ("ap_12_road.png", "left", 1.07, 1.9, [(NARR, "Τιμή ταξιμέτρου.")], False),
+    ("ap_13_backseat.png", "center", 1.09, 2.3, [(NARR, "Αποσκευές και διόδια δώρο.")], True),
+    ("ap_14_departures.png", "right", 1.07, 1.5, [], False),
+    ("ap_15_wave.png", "center", 1.09, 1.8, [(DRIVER, "Καλό ταξίδι!")], True),
 ]
 
 # first shot, last shot, greek, english
@@ -157,23 +161,23 @@ def hard_concat(clips: list[Path], dst: Path) -> None:
     ff("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(dst))
 
 
+async def take(voice: tuple[str, str, str], text: str) -> Path:
+    """Cached by voice and wording, so re-cuts do not re-synthesise everything."""
+    key = hashlib.sha1(f"{voice}|{text}".encode()).hexdigest()[:10]
+    wav = BUILD / f"ap_vo_{key}.wav"
+    if not wav.exists():
+        print("TTS", text)
+        mp3 = BUILD / f"ap_vo_{key}.mp3"
+        await say(voice, text, mp3)
+        trim_edges(mp3, wav)
+    return wav
+
+
 async def voices() -> tuple[list[list[Path]], Path]:
     takes: list[list[Path]] = []
-    for si, (_, _, _, _, lines, _) in enumerate(SHOTS):
-        shot: list[Path] = []
-        for li, (voice, text) in enumerate(lines):
-            mp3 = BUILD / f"ap_vo_{si:02d}_{li}.mp3"
-            wav = BUILD / f"ap_vo_{si:02d}_{li}.wav"
-            print("TTS", text)
-            await say(voice, text, mp3)
-            trim_edges(mp3, wav)
-            shot.append(wav)
-        takes.append(shot)
-    brand_mp3 = BUILD / "ap_vo_brand.mp3"
-    brand_wav = BUILD / "ap_vo_brand.wav"
-    await say(NARR, BRAND_LINE, brand_mp3)
-    trim_edges(brand_mp3, brand_wav)
-    return takes, brand_wav
+    for _, _, _, _, lines, _ in SHOTS:
+        takes.append([await take(voice, text) for voice, text in lines])
+    return takes, await take(NARR, BRAND_LINE)
 
 
 async def main() -> int:
@@ -257,7 +261,7 @@ async def main() -> int:
         args += ["-i", str(wav)]
 
     parts = [
-        f"[0:a]volume=0.62,afade=t=out:st={end_start - 0.15:.3f}:d=0.35,"
+        f"[0:a]volume=0.62,afade=t=out:st={end_start - 0.35:.3f}:d=0.50,"
         "aformat=sample_rates=44100:channel_layouts=stereo[m]",
         "[1:a]volume=0.55,aformat=sample_rates=44100:channel_layouts=stereo[s]",
     ]
