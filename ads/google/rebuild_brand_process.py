@@ -27,7 +27,7 @@ from build_video import FONT, duration, ff, kenburns, mix  # noqa: E402
 
 EL = {
     "out": ROOT / "taxi-and-fly-athens-to-airport-el.mp4",
-    "art": Path("/opt/cursor/artifacts/taxi_and_fly_dokimase_se_el.mp4"),
+    "art": Path("/opt/cursor/artifacts/taxi_and_fly_logo_el.mp4"),
     "vo": BUILD / "vo_simple_el",
     "voice": "el-GR-NestorasNeural",
     "rate": "-6%",
@@ -86,24 +86,21 @@ def _wrapped(draw: ImageDraw.ImageDraw, text: str, y: int, font, fill, max_w: in
     return top - y
 
 
-def logo_ring() -> Image.Image:
+def brand_logo() -> Image.Image:
+    """The real Taxi and Fly mark, not the cropped TAXI ring."""
     src = Image.open(LOGO).convert("RGB")
-    # Yellow ring only — not the misspelled wordmark baked into the PNG.
-    ring = src.crop((248, 155, 832, 500))
-    return ring.resize((560, 330), Image.Resampling.LANCZOS)
+    return src.resize((920, 920), Image.Resampling.LANCZOS)
 
 
 def brand_slide(phrase: str, dst: Path) -> None:
-    """9:16 Taxi and Fly card — yellow ring + words. Never a phone."""
+    """9:16 card — official logo + one line of copy. Never a phone."""
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
-    ring = logo_ring()
-    img.paste(ring, ((W - ring.width) // 2, 420))
-    f_brand = ImageFont.truetype(FONT, 70)
+    mark = brand_logo()
+    img.paste(mark, ((W - mark.width) // 2, 220))
     f_t = ImageFont.truetype(FONT, 50)
-    _center(draw, "Taxi and Fly", 820, f_brand, GOLD)
     if phrase and phrase != "Taxi and Fly":
-        _wrapped(draw, phrase, 960, f_t, WHITE)
+        _wrapped(draw, phrase, 1220, f_t, WHITE)
     img.save(dst)
 
 
