@@ -1,0 +1,18 @@
+{
+  "name": "Βάρδια — Bolt Uber FreeNow",
+  "short_name": "Βάρδια",
+  "description": "Ώρες που φεύγεις από Bolt, Uber και FreeNow, μέσος όρος και πότε να πάρεις νούμερο.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "lang": "el",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
