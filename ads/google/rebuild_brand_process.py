@@ -257,7 +257,16 @@ async def build(cfg: dict) -> None:
     silent = BUILD / f"brand_{cfg['out'].stem}_silent.mp4"
     lst = BUILD / f"brand_{cfg['out'].stem}_concat.txt"
     lst.write_text("".join(f"file '{c.resolve()}'\n" for c in clips))
-    ff("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(silent))
+    # Re-encode the joined cards: stream-copied concats stutter on some phones.
+    ff(
+        "-f", "concat", "-safe", "0", "-i", str(lst),
+        "-vf", f"fps={FPS},format=yuv420p,setsar=1",
+        "-fps_mode", "cfr", "-r", str(FPS),
+        "-c:v", "libx264", "-preset", "medium", "-crf", "19",
+        "-profile:v", "high", "-level", "4.0",
+        "-g", str(FPS * 2), "-keyint_min", str(FPS), "-sc_threshold", "0",
+        "-an", str(silent),
+    )
     total = duration(silent)
     bed = BUILD / f"brand_{cfg['out'].stem}_bed.wav"
     pretty_music(total + 0.4, bed)
@@ -267,8 +276,10 @@ async def build(cfg: dict) -> None:
     mix(silent, mix_a, tmp)
     ff(
         "-i", str(tmp),
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high",
-        "-preset", "fast", "-crf", "18",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.0",
+        "-preset", "medium", "-crf", "19",
+        "-fps_mode", "cfr", "-r", str(FPS),
+        "-g", str(FPS * 2), "-keyint_min", str(FPS), "-sc_threshold", "0",
         "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k",
         "-movflags", "+faststart", str(cfg["out"]),
     )
