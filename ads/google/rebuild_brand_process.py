@@ -86,8 +86,9 @@ def _wrapped(draw: ImageDraw.ImageDraw, text: str, y: int, font, fill, max_w: in
 
 def logo_ring() -> Image.Image:
     src = Image.open(LOGO).convert("RGB")
-    ring = src.crop((220, 140, 860, 720))
-    return ring.resize((520, 470), Image.Resampling.LANCZOS)
+    # Yellow ring only — not the misspelled wordmark baked into the PNG.
+    ring = src.crop((248, 155, 832, 500))
+    return ring.resize((560, 330), Image.Resampling.LANCZOS)
 
 
 def brand_slide(phrase: str, dst: Path) -> None:
@@ -95,12 +96,12 @@ def brand_slide(phrase: str, dst: Path) -> None:
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
     ring = logo_ring()
-    img.paste(ring, ((W - ring.width) // 2, 340))
+    img.paste(ring, ((W - ring.width) // 2, 420))
     f_brand = ImageFont.truetype(FONT, 70)
     f_t = ImageFont.truetype(FONT, 50)
-    _center(draw, "Taxi and Fly", 880, f_brand, GOLD)
+    _center(draw, "Taxi and Fly", 820, f_brand, GOLD)
     if phrase and phrase != "Taxi and Fly":
-        _wrapped(draw, phrase, 1020, f_t, WHITE)
+        _wrapped(draw, phrase, 960, f_t, WHITE)
     img.save(dst)
 
 
