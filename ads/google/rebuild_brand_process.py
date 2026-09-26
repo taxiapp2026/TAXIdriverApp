@@ -27,16 +27,17 @@ from build_video import FONT, duration, ff, kenburns, mix  # noqa: E402
 
 EL = {
     "out": ROOT / "taxi-and-fly-athens-to-airport-el.mp4",
-    "art": Path("/opt/cursor/artifacts/taxi_and_fly_dokimase_el.mp4"),
+    "art": Path("/opt/cursor/artifacts/taxi_and_fly_start_el.mp4"),
     "vo": BUILD / "vo_simple_el",
     "voice": "el-GR-NestorasNeural",
     "rate": "-6%",
-    "spoken": "Μια τόσο απλή εφαρμογή. Χωρίς login. Από και προς το αεροδρόμιο. Δοκίμασε την.",
+    "spoken": "Taxi and Fly. Μια τόσο απλή εφαρμογή. Χωρίς login. Από και προς το αεροδρόμιο. Δοκίμασέ την.",
     "slides": [
+        "Taxi and Fly",
         "Μια τόσο απλή εφαρμογή",
         "Χωρίς login",
         "Από και προς το αεροδρόμιο",
-        "Δοκίμασε την",
+        "Δοκίμασέ την",
     ],
 }
 
@@ -46,8 +47,9 @@ EN = {
     "vo": BUILD / "vo_simple_en",
     "voice": "en-US-AndrewNeural",
     "rate": "-4%",
-    "spoken": "Such a simple app. No login. To and from the airport. Try it.",
+    "spoken": "Taxi and Fly. Such a simple app. No login. To and from the airport. Try it.",
     "slides": [
+        "Taxi and Fly",
         "Such a simple app",
         "No login",
         "To and from the airport",
