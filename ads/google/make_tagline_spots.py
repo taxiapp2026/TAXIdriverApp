@@ -26,7 +26,8 @@ ART = Path("/opt/cursor/artifacts")
 sys.path.insert(0, str(ROOT))
 from add_pretty_music import pretty_music  # noqa: E402
 from build_video import FONT, FONT_REG, duration, ff, mix  # noqa: E402
-from rebuild_brand_process import icon_lettering, mix_vo  # noqa: E402
+from rebuild_brand_process import icon_lettering  # noqa: E402
+from spot_audio import logo_sting, plain_music  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
 GOLD = (255, 210, 40)
@@ -252,6 +253,56 @@ def trim_edges(src: Path, dst: Path) -> float:
 GAP = 0.95
 TAIL = 1.2
 
+VOICE_FX = (
+    "highpass=f=80,equalizer=f=160:t=q:w=1:g=1.8,equalizer=f=2600:t=q:w=1:g=1.2,"
+    "acompressor=threshold=-18dB:ratio=1.8:attack=15:release=140,"
+    "aformat=sample_rates=44100:channel_layouts=stereo,volume=1.18"
+)
+
+
+def mix_voiced(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None:
+    ff(
+        "-i", str(bed), "-i", str(sting), "-i", str(vo),
+        "-filter_complex",
+        "[0:a]volume=0.15,aformat=sample_rates=44100:channel_layouts=stereo[m];"
+        "[1:a]volume=0.50,aformat=sample_rates=44100:channel_layouts=stereo[s];"
+        f"[2:a]{VOICE_FX}[v];"
+        "[m][s][v]amix=inputs=3:duration=longest:dropout_transition=0:normalize=0,"
+        "loudnorm=I=-16:TP=-1.5:LRA=11,"
+        f"alimiter=limit=0.95,atrim=0:{total:.3f},asetpts=PTS-STARTPTS[a]",
+        "-map", "[a]", "-t", f"{total:.3f}",
+        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k", str(dst),
+    )
+
+
+def mix_plain(bed: Path, sting: Path, total: float, dst: Path) -> None:
+    ff(
+        "-i", str(bed), "-i", str(sting),
+        "-filter_complex",
+        "[0:a]volume=0.34,aformat=sample_rates=44100:channel_layouts=stereo[m];"
+        "[1:a]volume=0.55,aformat=sample_rates=44100:channel_layouts=stereo[s];"
+        "[m][s]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,"
+        "loudnorm=I=-17:TP=-1.5:LRA=11,"
+        f"alimiter=limit=0.95,atrim=0:{total:.3f},asetpts=PTS-STARTPTS[a]",
+        "-map", "[a]", "-t", f"{total:.3f}",
+        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k", str(dst),
+    )
+
+
+def encode(silent: Path, audio: Path, out: Path) -> None:
+    tmp = silent.with_name(silent.stem + "_" + out.stem + "_tmp.mp4")
+    mix(silent, audio, tmp)
+    ff(
+        "-i", str(tmp),
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.0",
+        "-preset", "medium", "-crf", "19",
+        "-fps_mode", "cfr", "-r", str(FPS),
+        "-g", str(FPS * 2), "-keyint_min", str(FPS), "-sc_threshold", "0",
+        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k",
+        "-movflags", "+faststart", str(out),
+    )
+    tmp.unlink(missing_ok=True)
+
 
 async def build(spot: dict) -> Path:
     slug = spot["slug"]
@@ -298,16 +349,24 @@ async def build(spot: dict) -> Path:
     shutil.rmtree(frames, ignore_errors=True)
     frames.mkdir(parents=True)
     n = int(round(total * FPS))
-    fade = 0.45
+    out_d, in_d = 0.22, 0.30
+    brand_at = switch + out_d
     for i in range(n):
         t = i / FPS
-        k = (t - switch) / fade
-        if k <= 0:
+        # Dip through the background instead of cross-dissolving the two layers,
+        # otherwise the tagline ghosts behind the logo.
+        k_out = max(0.0, min((t - switch) / out_d, 1.0))
+        k_in = max(0.0, min((t - brand_at) / in_d, 1.0))
+        if k_out >= 1 and k_in >= 1:
+            img = brand_frame(t, brand_at, cfg)
+        elif k_out <= 0:
             img = tagline_frame(t, cfg)
-        elif k >= 1:
-            img = brand_frame(t, switch, cfg)
         else:
-            img = Image.blend(tagline_frame(t, cfg), brand_frame(t, switch, cfg), k)
+            img = background(t)
+            if k_out < 1:
+                img = Image.blend(img, tagline_frame(t, cfg), 1 - k_out)
+            if k_in > 0:
+                img = Image.blend(img, brand_frame(t, brand_at, cfg), k_in)
         img.convert("RGB").save(frames / f"{i:05d}.png")
 
     silent = BUILD / f"spot_{slug}_silent.mp4"
@@ -322,27 +381,30 @@ async def build(spot: dict) -> Path:
     )
 
     vlen = duration(silent)
-    bed = BUILD / f"spot_{slug}_bed.wav"
-    pretty_music(vlen + 0.4, bed)
-    mixed = BUILD / f"spot_{slug}_mix.m4a"
-    mix_vo(vo, bed, vlen + 0.05, mixed)
-    tmp = BUILD / f"spot_{slug}_tmp.mp4"
-    mix(silent, mixed, tmp)
+    total_a = vlen + 0.05
+    sting = BUILD / f"spot_{slug}_sting.wav"
+    logo_sting(vlen + 0.4, brand_at + 0.12, sting)
 
+    voiced_bed = BUILD / f"spot_{slug}_bed.wav"
+    pretty_music(vlen + 0.4, voiced_bed)
+    voiced_a = BUILD / f"spot_{slug}_mix.m4a"
+    mix_voiced(vo, voiced_bed, sting, total_a, voiced_a)
     out = ROOT / f"taxi-and-fly-spot-{slug}.mp4"
-    ff(
-        "-i", str(tmp),
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.0",
-        "-preset", "medium", "-crf", "19",
-        "-fps_mode", "cfr", "-r", str(FPS),
-        "-g", str(FPS * 2), "-keyint_min", str(FPS), "-sc_threshold", "0",
-        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k",
-        "-movflags", "+faststart", str(out),
-    )
+    encode(silent, voiced_a, out)
+
+    plain_bed = BUILD / f"spot_{slug}_plainbed.wav"
+    plain_music(vlen + 0.4, plain_bed)
+    plain_a = BUILD / f"spot_{slug}_plain.m4a"
+    mix_plain(plain_bed, sting, total_a, plain_a)
+    out_plain = ROOT / f"taxi-and-fly-spot-{slug}-mousiki.mp4"
+    encode(silent, plain_a, out_plain)
+
     shutil.rmtree(frames, ignore_errors=True)
     ART.mkdir(parents=True, exist_ok=True)
-    (ART / f"taxi_and_fly_spot_{slug.replace('-', '_')}.mp4").write_bytes(out.read_bytes())
-    print("Wrote", out, round(duration(out), 2), "s")
+    stem = slug.replace("-", "_")
+    (ART / f"taxi_and_fly_spot_{stem}.mp4").write_bytes(out.read_bytes())
+    (ART / f"taxi_and_fly_spot_{stem}_mousiki.mp4").write_bytes(out_plain.read_bytes())
+    print("Wrote", out.name, "and", out_plain.name, round(duration(out), 2), "s")
     return out
 
 
