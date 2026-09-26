@@ -6,6 +6,7 @@ Real faces, reggae bed, and the same logo landing as the short spots.
 
 from __future__ import annotations
 
+import asyncio
 import shutil
 import sys
 from pathlib import Path
@@ -20,7 +21,7 @@ OUT = ROOT / "taxi-and-fly-istoria-aerodromio.mp4"
 
 sys.path.insert(0, str(ROOT))
 from build_video import FONT, FONT_REG, duration, ff, mix, xfade_concat  # noqa: E402
-from make_tagline_spots import background, badge_image  # noqa: E402
+from make_tagline_spots import VOICE_FX, background, badge_image, speak, trim_edges  # noqa: E402
 from spot_audio import logo_sting, reggae_music  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
@@ -29,7 +30,7 @@ WHITE = (245, 245, 245)
 GREY = (185, 185, 185)
 SHOT = 2.7
 FADE = 0.45
-END_SEC = 4.0
+END_SEC = 2.7
 
 SHOTS = [
     ("story_01_door.png", "Σήμερα ταξιδεύεις", "Today you travel", "up", 1.10),
@@ -162,8 +163,30 @@ def _brand(t: float, cfg: dict) -> Image.Image:
     return img
 
 
-def main() -> int:
+VOICE_LEAD = 0.45
+
+
+async def narration() -> list[Path]:
+    """One take per shot, plus the brand line for the end card."""
+    lines = [el for _, el, _, _, _ in SHOTS] + ["Taxi and Fly."]
+    out: list[Path] = []
+    for i, line in enumerate(lines):
+        mp3 = BUILD / f"story_vo_{i:02d}.mp3"
+        wav = BUILD / f"story_vo_{i:02d}.wav"
+        print("TTS", line)
+        await speak(line, mp3)
+        trim_edges(mp3, wav)
+        out.append(wav)
+    return out
+
+
+async def main() -> int:
     BUILD.mkdir(parents=True, exist_ok=True)
+    vo = await narration()
+    # Let every shot run as long as its line needs, never shorter than SHOT.
+    durs = [max(SHOT, duration(v) + VOICE_LEAD + 0.75) for v in vo[:-1]]
+    end_sec = max(END_SEC, duration(vo[-1]) + 1.8)
+
     clips: list[Path] = []
     for i, (name, el, en, pan, zoom) in enumerate(SHOTS):
         src = STORY / name
@@ -172,36 +195,62 @@ def main() -> int:
         raw = BUILD / f"story_{i:02d}_raw.mp4"
         cap = BUILD / f"story_{i:02d}_cap.png"
         clip = BUILD / f"story_{i:02d}.mp4"
-        kenburns(src, raw, SHOT, zoom, pan)
+        kenburns(src, raw, durs[i], zoom, pan)
         caption_png(el, en, cap)
-        captioned(raw, cap, clip, SHOT)
+        captioned(raw, cap, clip, durs[i])
         clips.append(clip)
 
     end = BUILD / "story_end.mp4"
-    end_card(end, END_SEC)
+    end_card(end, end_sec)
     clips.append(end)
 
     silent = BUILD / "story_silent.mp4"
     xfade_concat(clips, silent, fade=FADE)
     total = duration(silent)
-    end_start = total - END_SEC + FADE
+
+    starts = []
+    acc = 0.0
+    for d in durs:
+        starts.append(acc)
+        acc += d - FADE
+    end_start = acc
 
     bed = BUILD / "story_reggae.wav"
     reggae_music(total + 0.4, bed)
     sting = BUILD / "story_sting.wav"
-    logo_sting(total + 0.4, end_start + 0.25, sting)
-    audio = BUILD / "story_mix.m4a"
-    ff(
-        "-i", str(bed), "-i", str(sting),
-        "-filter_complex",
-        "[0:a]volume=0.85,aformat=sample_rates=44100:channel_layouts=stereo[m];"
-        "[1:a]volume=0.55,aformat=sample_rates=44100:channel_layouts=stereo[s];"
-        "[m][s]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,"
-        "loudnorm=I=-16:TP=-1.5:LRA=11,"
-        f"alimiter=limit=0.95,atrim=0:{total:.3f},asetpts=PTS-STARTPTS[a]",
-        "-map", "[a]", "-t", f"{total:.3f}",
-        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k", str(audio),
+    logo_sting(total + 0.4, end_start + 0.3, sting)
+
+    delays = [int((s + VOICE_LEAD) * 1000) for s in starts] + [int((end_start + 0.7) * 1000)]
+    args: list[str] = ["-i", str(bed), "-i", str(sting)]
+    for v in vo:
+        args += ["-i", str(v)]
+
+    # The reggae stops dead as the logo lands; only the sting and the name remain.
+    parts = [
+        f"[0:a]volume=0.62,afade=t=out:st={end_start - 0.15:.3f}:d=0.35,"
+        "aformat=sample_rates=44100:channel_layouts=stereo[m]",
+        "[1:a]volume=0.55,aformat=sample_rates=44100:channel_layouts=stereo[s]",
+    ]
+    labels = []
+    for k, d in enumerate(delays):
+        lbl = f"v{k}"
+        parts.append(f"[{k + 2}:a]adelay={d}|{d},aformat=sample_rates=44100:channel_layouts=stereo[{lbl}]")
+        labels.append(f"[{lbl}]")
+    parts.append(
+        "".join(labels) + f"amix=inputs={len(labels)}:duration=longest:dropout_transition=0:normalize=0,"
+        f"{VOICE_FX},asplit=2[vv][vk]"
     )
+    # Duck the music whenever the narrator speaks.
+    parts.append("[m][vk]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=350[md]")
+    parts.append(
+        "[md][s][vv]amix=inputs=3:duration=longest:dropout_transition=0:normalize=0,"
+        "loudnorm=I=-16:TP=-1.5:LRA=11,"
+        f"alimiter=limit=0.95,atrim=0:{total:.3f},asetpts=PTS-STARTPTS[a]"
+    )
+
+    audio = BUILD / "story_mix.m4a"
+    ff(*args, "-filter_complex", ";".join(parts), "-map", "[a]", "-t", f"{total:.3f}",
+       "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k", str(audio))
 
     tmp = BUILD / "story_tmp.mp4"
     mix(silent, audio, tmp)
@@ -222,4 +271,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(asyncio.run(main()))
