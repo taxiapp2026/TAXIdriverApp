@@ -73,7 +73,7 @@ SPOTS = [
         "slug": "odigoi-taxi",
         "el": "Επαγγελματίες πιστοποιημένοι\nοδηγοί ταξί.\nΣε συνδέουμε μαζί τους.",
         "spoken": "Επαγγελματίες πιστοποιημένοι οδηγοί ταξί. Σε συνδέουμε μαζί τους.",
-        "en": "Certified professional taxi drivers. We connect you with them.",
+        "en": "Certified taxi drivers. We connect you.",
         "speech_bed": "reggae",
     },
 ]
@@ -149,6 +149,22 @@ def background(t: float) -> Image.Image:
     return base
 
 
+def wrap_centered(draw: ImageDraw.ImageDraw, text: str, font, max_w: int) -> list[str]:
+    words = text.split()
+    lines: list[str] = []
+    cur: list[str] = []
+    for word in words:
+        trial = " ".join(cur + [word])
+        if draw.textlength(trial, font=font) <= max_w or not cur:
+            cur.append(word)
+        else:
+            lines.append(" ".join(cur))
+            cur = [word]
+    if cur:
+        lines.append(" ".join(cur))
+    return lines or [text]
+
+
 def tagline_frame(t: float, cfg: dict) -> Image.Image:
     img = background(t)
     draw = ImageDraw.Draw(img)
@@ -156,17 +172,17 @@ def tagline_frame(t: float, cfg: dict) -> Image.Image:
     f_en = cfg["f_en"]
     placed = cfg["placed"]
     block_h = cfg["block_h"]
-    line_h = cfg["line_h"]
-    top = 900 - block_h / 2 - min(t * 5, 22)
+    # Keep the block centered with room above so the rise-in never feels clipped.
+    top = 920 - block_h / 2
 
     last_word_end = cfg["word_times"][-1] + 0.35
     for item in placed:
         start = cfg["word_times"][min(item["i"], len(cfg["word_times"]) - 1)]
-        k = max(0.0, min((t - start) / 0.26, 1.0))
+        k = max(0.0, min((t - start) / 0.32, 1.0))
         if k <= 0:
             continue
         ease = 1 - (1 - k) ** 3
-        y = top + item["y"] + (1 - ease) * 26
+        y = top + item["y"] + (1 - ease) * 36
         draw.text((item["x"], y), item["text"], font=f_el, fill=WHITE + (int(255 * ease),))
 
     bar_k = max(0.0, min((t - cfg["word_times"][0]) / max(last_word_end - cfg["word_times"][0], 0.4), 1.0))
@@ -179,13 +195,15 @@ def tagline_frame(t: float, cfg: dict) -> Image.Image:
 
     en_k = max(0.0, min((t - cfg["en_at"]) / 0.4, 1.0))
     if en_k > 0:
-        en_w = draw.textlength(cfg["en"], font=f_en)
-        draw.text(
-            ((W - en_w) / 2, bar_y + 46 + (1 - en_k) * 14),
-            cfg["en"],
-            font=f_en,
-            fill=GREY + (int(235 * en_k),),
-        )
+        en_lines = wrap_centered(draw, cfg["en"], f_en, 900)
+        for i, line in enumerate(en_lines):
+            en_w = draw.textlength(line, font=f_en)
+            draw.text(
+                ((W - en_w) / 2, bar_y + 46 + i * 48 + (1 - en_k) * 14),
+                line,
+                font=f_en,
+                fill=GREY + (int(235 * en_k),),
+            )
     return img
 
 
@@ -269,6 +287,8 @@ def trim_edges(src: Path, dst: Path) -> float:
 
 GAP = 0.95
 TAIL = 1.2
+# Empty beat before the first word, so the open isn't clipped on entry.
+INTRO = 0.45
 
 VOICE_FX = (
     "highpass=f=80,equalizer=f=160:t=q:w=1:g=1.8,equalizer=f=2600:t=q:w=1:g=1.2,"
@@ -338,18 +358,22 @@ async def build(spot: dict) -> Path:
     tag_wav = BUILD / f"spot_{slug}_tag.wav"
     brand_wav = BUILD / f"spot_{slug}_brand.wav"
     trim_edges(brand_mp3, brand_wav)
+    intro = BUILD / f"spot_{slug}_intro.wav"
     pause = BUILD / f"spot_{slug}_pause.wav"
+    ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{INTRO:.3f}", str(intro))
     ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{GAP:.3f}", str(pause))
     lst = BUILD / f"spot_{slug}_join.txt"
-    lst.write_text("".join(f"file '{p.resolve()}'\n" for p in (tag_wav, pause, brand_wav)))
+    lst.write_text(
+        "".join(f"file '{p.resolve()}'\n" for p in (intro, tag_wav, pause, brand_wav))
+    )
     vo = BUILD / f"spot_{slug}_vo.wav"
     ff("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(vo))
 
-    word_times = [max(m["t"] - lead, 0.06) for m in marks] or [0.3]
+    word_times = [max(m["t"] - lead, 0.06) + INTRO for m in marks] or [INTRO + 0.3]
     t1 = duration(tag_wav)
     # Hold the finished line for a beat, then land on the logo with the words.
-    switch = t1 + 0.8
-    total = t1 + GAP + duration(brand_wav) + TAIL
+    switch = INTRO + t1 + 0.8
+    total = INTRO + t1 + GAP + duration(brand_wav) + TAIL
 
     probe = ImageDraw.Draw(Image.new("RGB", (10, 10)))
     # Slightly larger type for short two-beat lines.
@@ -415,7 +439,7 @@ async def build(spot: dict) -> Path:
     if bed_kind == "reggae":
         # Punchier groove under the line — not the soft pad, not the logo bell.
         reggae_music(vlen + 0.4, voiced_bed)
-        bed_vol = 0.12
+        bed_vol = 0.22
     else:
         pretty_music(vlen + 0.4, voiced_bed)
         bed_vol = 0.15
@@ -427,7 +451,7 @@ async def build(spot: dict) -> Path:
     plain_bed = BUILD / f"spot_{slug}_plainbed.wav"
     if bed_kind == "reggae":
         reggae_music(vlen + 0.4, plain_bed)
-        plain_vol = 0.30
+        plain_vol = 0.42
     else:
         plain_music(vlen + 0.4, plain_bed)
         plain_vol = 0.34
