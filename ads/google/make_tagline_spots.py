@@ -69,6 +69,13 @@ SPOTS = [
         # Different bed under the VO than the logo sting (keep sting the same).
         "speech_bed": "reggae",
     },
+    {
+        "slug": "odigoi-taxi",
+        "el": "Επαγγελματίες πιστοποιημένοι\nοδηγοί ταξί.\nΣε συνδέουμε μαζί τους.",
+        "spoken": "Επαγγελματίες πιστοποιημένοι οδηγοί ταξί. Σε συνδέουμε μαζί τους.",
+        "en": "Certified professional taxi drivers. We connect you with them.",
+        "speech_bed": "reggae",
+    },
 ]
 
 
