@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Original audio for the short spots: a logo sting and a second music bed."""
+
+from __future__ import annotations
+
+import math
+import wave
+from pathlib import Path
+
+import numpy as np
+
+SR = 44100
+
+
+def write_wav(path: Path, audio: np.ndarray) -> None:
+    pcm = (np.clip(audio, -0.97, 0.97) * 32767).astype(np.int16)
+    with wave.open(str(path), "w") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(SR)
+        wf.writeframes(pcm.tobytes())
+
+
+def read_wav(path: Path) -> np.ndarray:
+    with wave.open(str(path)) as wf:
+        raw = wf.readframes(wf.getnframes())
+    return np.frombuffer(raw, dtype=np.int16).astype(np.float64) / 32767.0
+
+
+def logo_sting(seconds: float, hit: float, dst: Path) -> None:
+    """Warm bell that lands with the logo, with a short breath of air before it."""
+    n = int(SR * seconds)
+    out = np.zeros(n)
+
+    # Rising air just ahead of the logo.
+    rise = 0.42
+    i0 = max(int((hit - rise) * SR), 0)
+    leng = min(int(rise * SR), n - i0)
+    if leng > 0:
+        tt = np.linspace(0, 1, leng, False)
+        noise = np.random.default_rng(7).normal(0, 1, leng)
+        smooth = np.convolve(noise, np.ones(90) / 90, mode="same")
+        out[i0 : i0 + leng] += 0.16 * smooth * (tt ** 2.2)
+
+    # D major bell: D5, F#5, A5, with the octave on top.
+    for freq, amp, delay, decay in (
+        (587.33, 0.30, 0.00, 2.2),
+        (739.99, 0.20, 0.045, 2.4),
+        (880.00, 0.16, 0.090, 2.6),
+        (1174.66, 0.08, 0.135, 3.2),
+    ):
+        j0 = int((hit + delay) * SR)
+        if j0 >= n:
+            continue
+        leng = min(int(2.6 * SR), n - j0)
+        tt = np.linspace(0, leng / SR, leng, False)
+        tone = amp * np.sin(2 * math.pi * freq * tt) * np.exp(-decay * tt)
+        tone += 0.28 * amp * np.sin(2 * math.pi * freq * 2.004 * tt) * np.exp(-decay * 1.8 * tt)
+        out[j0 : j0 + leng] += tone
+
+    # Soft low body so the bell has weight on a phone speaker.
+    j0 = int(hit * SR)
+    leng = min(int(0.7 * SR), n - j0)
+    if leng > 0:
+        tt = np.linspace(0, leng / SR, leng, False)
+        out[j0 : j0 + leng] += 0.22 * np.sin(2 * math.pi * 110.0 * tt) * np.exp(-5.0 * tt)
+
+    write_wav(dst, out)
+
+
+def reggae_music(seconds: float, dst: Path) -> None:
+    """Sunny original reggae: one-drop drums, offbeat skank, round bass."""
+    n = int(SR * seconds)
+    out = np.zeros(n)
+    bpm = 76.0
+    beat = 60.0 / bpm
+    bar = beat * 4
+
+    def place(buf: np.ndarray, at: float, sound: np.ndarray) -> None:
+        j0 = int(at * SR)
+        if j0 >= len(buf) or j0 < 0:
+            return
+        leng = min(len(sound), len(buf) - j0)
+        buf[j0 : j0 + leng] += sound[:leng]
+
+    def env(length: float, decay: float) -> tuple[np.ndarray, np.ndarray]:
+        leng = int(length * SR)
+        tt = np.linspace(0, length, leng, False)
+        return tt, np.exp(-decay * tt)
+
+    # A – E – F#m – D, one bar each.
+    progression = [
+        (110.00, (440.00, 554.37, 659.25)),
+        (82.41, (415.30, 493.88, 659.25)),
+        (92.50, (440.00, 554.37, 739.99)),
+        (73.42, (440.00, 587.33, 739.99)),
+    ]
+
+    bars = int(seconds / bar) + 1
+    for b in range(bars):
+        t0 = b * bar
+        if t0 >= seconds:
+            break
+        root, chord = progression[b % len(progression)]
+
+        # Warm organ held across the bar, so the groove never falls silent.
+        hold = min(bar * 1.02, seconds - t0)
+        if hold > 0.05:
+            tt = np.linspace(0, hold, int(hold * SR), False)
+            shape = np.minimum(tt / 0.12, 1.0) * np.minimum((hold - tt) / 0.20, 1.0)
+            organ = sum(0.030 * np.sin(2 * math.pi * f * 0.5 * tt) for f in chord)
+            organ += 0.020 * np.sin(2 * math.pi * root * 2 * tt)
+            place(out, t0, organ * np.clip(shape, 0, 1))
+
+        # Offbeat skank on the "and" of every beat — the reggae chop.
+        for k in range(4):
+            at = t0 + k * beat + beat / 2
+            tt, e = env(0.30, 16.0)
+            stab = sum(0.05 * np.sin(2 * math.pi * f * tt) for f in chord)
+            stab += 0.018 * np.sin(2 * math.pi * chord[0] * 0.5 * tt)
+            place(out, at, stab * e)
+
+        # Bass riff: root, root, fifth, root — round and dry.
+        for off, ratio in ((0.0, 1.0), (1.0, 2.0), (1.5, 1.0), (2.5, 1.5), (3.0, 1.0)):
+            tt, e = env(0.52, 5.2)
+            f = root * ratio
+            tone = (0.34 * np.sin(2 * math.pi * f * tt) + 0.07 * np.sin(2 * math.pi * f * 2 * tt))
+            place(out, t0 + off * beat, tone * e * np.minimum(tt / 0.012, 1.0))
+
+        # One drop: kick and snare land together on beat three.
+        tt, e = env(0.42, 13.0)
+        kick = 0.42 * np.sin(2 * math.pi * (58 + 70 * np.exp(-42 * tt)) * tt) * e
+        place(out, t0 + 2 * beat, kick)
+
+        rng = np.random.default_rng(100 + b)
+        tt, e = env(0.20, 26.0)
+        noise = rng.normal(0, 1, len(tt))
+        snare = 0.13 * (noise - np.convolve(noise, np.ones(12) / 12, mode="same")) * e
+        place(out, t0 + 2 * beat, snare)
+
+        # Hats on the eighths, softer on the downbeats.
+        for k in range(8):
+            tt, e = env(0.07, 70.0)
+            hn = rng.normal(0, 1, len(tt))
+            hat = 0.035 * (hn - np.convolve(hn, np.ones(4) / 4, mode="same")) * e
+            place(out, t0 + k * beat / 2, hat * (1.0 if k % 2 else 0.6))
+
+    t = np.linspace(0, seconds, n, False)
+    fade = np.minimum(np.minimum(t / 1.2, 1.0), np.minimum((seconds - t) / 2.0, 1.0))
+    write_wav(dst, out * np.clip(fade, 0, 1) * 0.72)
+
+
+def plain_music(seconds: float, dst: Path) -> None:
+    """Brighter plucked bed for the versions with no voice. Not a known song."""
+    n = int(SR * seconds)
+    t = np.linspace(0, seconds, n, False)
+    out = np.zeros(n)
+
+    # Gentle plucked arpeggio in A major.
+    arp = [220.00, 277.18, 329.63, 440.00, 329.63, 277.18]
+    step = 0.32
+    for i in range(int(seconds / step) + 1):
+        t0 = i * step
+        if t0 >= seconds - 0.1:
+            break
+        f0 = arp[i % len(arp)]
+        j0 = int(t0 * SR)
+        leng = min(int(0.85 * SR), n - j0)
+        if leng <= 0:
+            continue
+        tt = np.linspace(0, leng / SR, leng, False)
+        pluck = (
+            0.085 * np.sin(2 * math.pi * f0 * tt)
+            + 0.034 * np.sin(2 * math.pi * f0 * 2 * tt)
+            + 0.016 * np.sin(2 * math.pi * f0 * 3 * tt)
+        ) * np.exp(-3.4 * tt)
+        out[j0 : j0 + leng] += pluck
+
+    # Low sustain underneath so it never sounds thin.
+    out += (
+        0.055 * np.sin(2 * math.pi * 110.0 * t)
+        + 0.030 * np.sin(2 * math.pi * 164.81 * t)
+        + 0.018 * np.sin(2 * math.pi * 220.0 * t)
+    ) * (0.9 + 0.1 * np.sin(2 * math.pi * 0.16 * t))
+
+    env = np.minimum(np.minimum(t / 0.9, 1.0), np.minimum((seconds - t) / 1.6, 1.0))
+    write_wav(dst, out * np.clip(env, 0, 1) * 0.9)
