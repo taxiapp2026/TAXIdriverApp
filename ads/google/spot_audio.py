@@ -150,6 +150,78 @@ def reggae_music(seconds: float, dst: Path) -> None:
     write_wav(dst, out * np.clip(fade, 0, 1) * 0.72)
 
 
+def drive_music(seconds: float, dst: Path) -> None:
+    """Upbeat original drive bed: pulse, kick, bright stabs. Not a known song."""
+    n = int(SR * seconds)
+    out = np.zeros(n)
+    bpm = 112.0
+    beat = 60.0 / bpm
+    rng = np.random.default_rng(21)
+
+    def place(buf: np.ndarray, at: float, sound: np.ndarray) -> None:
+        j0 = int(at * SR)
+        if j0 >= len(buf) or j0 < 0:
+            return
+        leng = min(len(sound), len(buf) - j0)
+        buf[j0 : j0 + leng] += sound[:leng]
+
+    # Bright major lift: C – G – Am – F
+    chords = [
+        (130.81, (261.63, 329.63, 392.00)),
+        (98.00, (196.00, 246.94, 392.00)),
+        (110.00, (220.00, 261.63, 329.63)),
+        (87.31, (174.61, 220.00, 261.63)),
+    ]
+    bars = int(seconds / (beat * 4)) + 2
+    for b in range(bars):
+        t0 = b * beat * 4
+        if t0 >= seconds:
+            break
+        root, chord = chords[b % len(chords)]
+
+        # Soft pad across the bar.
+        hold = min(beat * 4.05, seconds - t0 + 0.05)
+        if hold > 0.05:
+            tt = np.linspace(0, hold, int(hold * SR), False)
+            shape = np.minimum(tt / 0.08, 1.0) * np.minimum((hold - tt) / 0.18, 1.0)
+            pad = sum(0.028 * np.sin(2 * math.pi * f * tt) for f in chord)
+            pad += 0.022 * np.sin(2 * math.pi * root * tt)
+            place(out, t0, pad * np.clip(shape, 0, 1))
+
+        # Four-on-the-floor kick + offbeat clap energy.
+        for k in range(4):
+            at = t0 + k * beat
+            tt = np.linspace(0, 0.28, int(0.28 * SR), False)
+            kick = 0.38 * np.sin(2 * math.pi * (70 + 90 * np.exp(-35 * tt)) * tt) * np.exp(-10 * tt)
+            place(out, at, kick)
+
+            # snappy hat on every eighth
+            for h in (0.0, 0.5):
+                ht = np.linspace(0, 0.06, int(0.06 * SR), False)
+                noise = rng.normal(0, 1, len(ht))
+                hat = 0.045 * (noise - np.convolve(noise, np.ones(5) / 5, mode="same"))
+                hat *= np.exp(-55 * ht)
+                place(out, at + h * beat, hat * (1.0 if h else 0.7))
+
+            # bright stab on the offbeat
+            st = np.linspace(0, 0.22, int(0.22 * SR), False)
+            stab = sum(0.055 * np.sin(2 * math.pi * f * st) for f in chord)
+            stab *= np.exp(-14 * st) * np.minimum(st / 0.01, 1.0)
+            place(out, at + beat * 0.5, stab)
+
+        # short bass walk
+        for off, ratio in ((0.0, 1.0), (1.0, 1.0), (2.0, 1.5), (3.0, 1.0)):
+            tt = np.linspace(0, 0.36, int(0.36 * SR), False)
+            f = root * ratio
+            bass = (0.30 * np.sin(2 * math.pi * f * tt) + 0.08 * np.sin(2 * math.pi * f * 2 * tt))
+            bass *= np.exp(-4.8 * tt) * np.minimum(tt / 0.01, 1.0)
+            place(out, t0 + off * beat, bass)
+
+    t = np.linspace(0, seconds, n, False)
+    fade = np.minimum(np.minimum(t / 0.35, 1.0), np.minimum((seconds - t) / 1.2, 1.0))
+    write_wav(dst, out * np.clip(fade, 0, 1) * 0.78)
+
+
 def plain_music(seconds: float, dst: Path) -> None:
     """Brighter plucked bed for the versions with no voice. Not a known song."""
     n = int(SR * seconds)

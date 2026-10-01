@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 from add_pretty_music import pretty_music  # noqa: E402
 from build_video import FONT, FONT_REG, duration, ff, mix  # noqa: E402
 from rebuild_brand_process import icon_lettering  # noqa: E402
-from spot_audio import logo_sting, plain_music, reggae_music  # noqa: E402
+from spot_audio import drive_music, logo_sting, plain_music  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
 GOLD = (255, 210, 40)
@@ -35,6 +35,11 @@ WHITE = (242, 242, 242)
 GREY = (168, 168, 168)
 BG = (8, 8, 8, 255)
 APP_URL = "taxiapp2026.github.io/taxi-client-app"
+BRAND_SPOKEN = (
+    "Taxi and Fly. Η πιο εύκολη εφαρμογή για από και προς "
+    "το αεροδρόμιο Ελ Βενιζέλος, Αθήνα."
+)
+BRAND_TAG = "Η πιο εύκολη εφαρμογή\nγια από και προς\nΑεροδρόμιο Ελ. Βενιζέλος · Αθήνα"
 
 VOICE = "el-GR-NestorasNeural"
 RATE = "-8%"
@@ -66,15 +71,19 @@ SPOTS = [
         "el": "Μην ψάχνεις τον γίγαντα.\nΒρες το διαμάντι.",
         "spoken": "Μην ψάχνεις τον γίγαντα. Βρες το διαμάντι.",
         "en": "Don't chase the giant. Find the diamond.",
-        # Different bed under the VO than the logo sting (keep sting the same).
-        "speech_bed": "reggae",
+        # Energetic drive bed under the VO; logo sting stays the same.
+        "speech_bed": "drive",
+        "brand_spoken": BRAND_SPOKEN,
+        "brand_tag": BRAND_TAG,
     },
     {
         "slug": "odigoi-taxi",
         "el": "Επαγγελματίες πιστοποιημένοι\nοδηγοί ταξί.\nΣε συνδέουμε μαζί τους.",
         "spoken": "Επαγγελματίες πιστοποιημένοι οδηγοί ταξί. Σε συνδέουμε μαζί τους.",
         "en": "Certified taxi drivers. We connect you.",
-        "speech_bed": "reggae",
+        "speech_bed": "drive",
+        "brand_spoken": BRAND_SPOKEN,
+        "brand_tag": BRAND_TAG,
     },
 ]
 
@@ -212,20 +221,41 @@ def brand_frame(t: float, switch: float, cfg: dict) -> Image.Image:
     draw = ImageDraw.Draw(img)
     since = max(t - switch, 0.0)
     grow = 1 - (1 - min(since / 0.7, 1.0)) ** 3
-    scale = 0.90 + 0.10 * grow + 0.016 * min(since, 3.0)
+    # Slightly smaller badge when the airport line is on the end card.
+    base = 0.78 if cfg.get("brand_tag") else 0.90
+    scale = base + 0.10 * grow + 0.012 * min(since, 3.0)
     mark = badge_image()
     size = int(mark.width * scale)
     mark = mark.resize((size, size), Image.Resampling.LANCZOS)
-    img.alpha_composite(mark, ((W - size) // 2, 620 - size // 2))
+    badge_y = 480 if cfg.get("brand_tag") else 620
+    img.alpha_composite(mark, ((W - size) // 2, badge_y - size // 2))
 
     f_brand = cfg["f_brand"]
+    f_tag = cfg["f_tag"]
     f_url = cfg["f_url"]
     rise = (1 - grow) * 18
+    name_y = 880 if cfg.get("brand_tag") else 1080
     bw = draw.textlength("Taxi and Fly", font=f_brand)
-    draw.text(((W - bw) / 2, 1080 + rise), "Taxi and Fly", font=f_brand, fill=GOLD + (255,))
-    uw = draw.textlength(APP_URL, font=f_url)
+    draw.text(((W - bw) / 2, name_y + rise), "Taxi and Fly", font=f_brand, fill=GOLD + (255,))
+
     fade = min(max((since - 0.35) / 0.5, 0.0), 1.0)
-    draw.text(((W - uw) / 2, 1230), APP_URL, font=f_url, fill=GREY + (int(230 * fade),))
+    tag = cfg.get("brand_tag") or ""
+    if tag and fade > 0:
+        y = name_y + 110
+        for line in tag.split("\n"):
+            tw = draw.textlength(line, font=f_tag)
+            draw.text(
+                ((W - tw) / 2, y + (1 - fade) * 12),
+                line,
+                font=f_tag,
+                fill=WHITE + (int(240 * fade),),
+            )
+            y += 58
+        url_y = y + 28
+    else:
+        url_y = 1230
+    uw = draw.textlength(APP_URL, font=f_url)
+    draw.text(((W - uw) / 2, url_y), APP_URL, font=f_url, fill=GREY + (int(230 * fade),))
     return img
 
 
@@ -285,8 +315,8 @@ def trim_edges(src: Path, dst: Path) -> float:
     return lead
 
 
-GAP = 0.95
-TAIL = 1.2
+GAP = 0.85
+TAIL = 1.35
 # Empty beat before the first word, so the open isn't clipped on entry.
 INTRO = 0.45
 
@@ -351,8 +381,9 @@ async def build(spot: dict) -> Path:
     print("TTS", spoken)
     tag_mp3 = BUILD / f"spot_{slug}_tag.mp3"
     marks = await speak(spoken, tag_mp3)
+    brand_spoken = spot.get("brand_spoken") or "Taxi and Fly."
     brand_mp3 = BUILD / f"spot_{slug}_brand.mp3"
-    await speak("Taxi and Fly.", brand_mp3)
+    await speak(brand_spoken, brand_mp3)
 
     lead = trim_edges(tag_mp3, BUILD / f"spot_{slug}_tag.wav")
     tag_wav = BUILD / f"spot_{slug}_tag.wav"
@@ -385,6 +416,7 @@ async def build(spot: dict) -> Path:
         "f_el": f_el,
         "f_en": ImageFont.truetype(FONT_REG, 40),
         "f_brand": ImageFont.truetype(FONT, 84),
+        "f_tag": ImageFont.truetype(FONT_REG, 44),
         "f_url": ImageFont.truetype(FONT_REG, 33),
         "placed": placed,
         "block_h": block_h,
@@ -392,6 +424,7 @@ async def build(spot: dict) -> Path:
         "word_times": word_times,
         "en_at": word_times[min(1, len(word_times) - 1)] + 0.2,
         "en": spot["en"],
+        "brand_tag": spot.get("brand_tag") or "",
     }
 
     frames = BUILD / f"frames_{slug}"
@@ -436,10 +469,9 @@ async def build(spot: dict) -> Path:
 
     voiced_bed = BUILD / f"spot_{slug}_bed.wav"
     bed_kind = spot.get("speech_bed", "pretty")
-    if bed_kind == "reggae":
-        # Punchier groove under the line — not the soft pad, not the logo bell.
-        reggae_music(vlen + 0.4, voiced_bed)
-        bed_vol = 0.22
+    if bed_kind == "drive":
+        drive_music(vlen + 0.4, voiced_bed)
+        bed_vol = 0.20
     else:
         pretty_music(vlen + 0.4, voiced_bed)
         bed_vol = 0.15
@@ -449,9 +481,9 @@ async def build(spot: dict) -> Path:
     encode(silent, voiced_a, out)
 
     plain_bed = BUILD / f"spot_{slug}_plainbed.wav"
-    if bed_kind == "reggae":
-        reggae_music(vlen + 0.4, plain_bed)
-        plain_vol = 0.42
+    if bed_kind == "drive":
+        drive_music(vlen + 0.4, plain_bed)
+        plain_vol = 0.38
     else:
         plain_music(vlen + 0.4, plain_bed)
         plain_vol = 0.34
