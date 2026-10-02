@@ -29,17 +29,26 @@ from rebuild_brand_process import icon_lettering  # noqa: E402
 from spot_audio import logo_sting  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
+# Peppa-like bright cartoon palette
 GOLD = (255, 210, 40)
-WHITE = (250, 250, 250)
-INK = (18, 18, 20)
-SOFT_INK = (40, 42, 48)
-TAXI = (255, 204, 0)
-ROAD = (48, 52, 60)
-SKY_TOP = (186, 214, 236)
-SKY_BOT = (232, 240, 246)
-ROOM = (244, 241, 236)
-GRASS = (148, 186, 132)
-SHADOW = (0, 0, 0, 55)
+WHITE = (255, 255, 255)
+INK = (40, 30, 40)
+SOFT_INK = (90, 70, 90)
+TAXI = (255, 214, 10)
+ROAD = (170, 165, 160)
+SKY_TOP = (120, 198, 235)
+SKY_BOT = (185, 225, 245)
+ROOM = (255, 236, 220)
+GRASS = (110, 196, 80)
+HILL = (90, 176, 70)
+HILL2 = (130, 210, 95)
+HOUSE_WALL = (255, 245, 230)
+ROOF = (230, 70, 85)
+WINDOW = (120, 210, 255)
+DOOR = (255, 160, 70)
+CLOUD = (255, 255, 255)
+CAPTION_BG = (255, 248, 170)
+SHADOW = (0, 0, 0, 40)
 VOICE = "el-GR-NestorasNeural"
 RATE = "-16%"  # slower, clearer
 TAIL = 1.4
@@ -57,8 +66,11 @@ VARIANTS = {
         "beats": [
             ("start_city", "Όπου κι αν βρίσκεσαι"),
             ("call", "Κλείσε Taxi and Fly"),
-            ("pickup", "Έρχεται το ταξί"),
-            ("drive", "Σε πάει στο ραντεβού σου"),
+            ("pickup_city", "Έρχεται το ταξί"),
+            (
+                "drive",
+                "Σε πάει με πιστοποιημένους οδηγούς ταξί\nμε ασφάλεια στον προορισμό σου",
+            ),
         ],
     },
     # 2) Arrive Athens (El. Venizelos) → your destination
@@ -70,8 +82,12 @@ VARIANTS = {
         "beats": [
             ("start_airport", "Έρχεσαι Αθήνα στο Ελ Βενιζέλος"),
             ("call", "Θες να πας στον προορισμό σου"),
-            ("pickup", "Κλείσε Taxi and Fly"),
-            ("drive", "Σε πάει στον προορισμό σου"),
+            ("call", "Κλείσε Taxi and Fly"),
+            ("pickup_airport", "Έρχεται το ταξί"),
+            (
+                "drive",
+                "Σε πάει με πιστοποιημένους οδηγούς ταξί\nμε ασφάλεια στον προορισμό σου",
+            ),
         ],
     },
     # 3) In Athens → airport
@@ -83,8 +99,12 @@ VARIANTS = {
         "beats": [
             ("start_city", "Είσαι στην Αθήνα"),
             ("call", "Θες να πας στο αεροδρόμιο"),
-            ("pickup", "Κλείσε Taxi and Fly"),
-            ("drive", "Σε πάει στο αεροδρόμιο"),
+            ("call", "Κλείσε Taxi and Fly"),
+            ("pickup_city", "Έρχεται το ταξί"),
+            (
+                "drive",
+                "Σε πάει με πιστοποιημένους οδηγούς ταξί\nμε ασφάλεια στο αεροδρόμιο",
+            ),
         ],
     },
 }
@@ -108,16 +128,31 @@ def sky_bg() -> Image.Image:
     arr = np.zeros((H, W, 3), dtype=np.uint8)
     for y in range(H):
         k = y / (H - 1)
-        arr[y, :] = mix_rgb(SKY_TOP, SKY_BOT, k)
-    return Image.fromarray(arr, "RGB").convert("RGBA")
+        arr[y, :] = mix_rgb(SKY_TOP, SKY_BOT, min(k * 1.15, 1.0))
+    img = Image.fromarray(arr, "RGB").convert("RGBA")
+    draw = ImageDraw.Draw(img)
+    # fluffy Peppa-style clouds
+    for cx, cy, s in ((180, 220, 1.0), (520, 160, 1.25), (860, 250, 0.9), (700, 340, 0.7)):
+        for ox, oy, r in ((0, 0, 55), (-48, 10, 42), (48, 12, 44), (-10, -28, 36), (30, -22, 34)):
+            draw.ellipse(
+                (cx + ox * s - r * s, cy + oy * s - r * s, cx + ox * s + r * s, cy + oy * s + r * s),
+                fill=CLOUD + (255,),
+            )
+    # soft rolling hills behind ground scenes
+    draw.ellipse((-200, 1100, 700, 1700), fill=HILL + (255,))
+    draw.ellipse((400, 1150, 1300, 1750), fill=HILL2 + (255,))
+    return img
 
 
 def room_bg() -> Image.Image:
     img = Image.new("RGBA", (W, H), ROOM + (255,))
     draw = ImageDraw.Draw(img)
-    # subtle wall panel
-    draw.rectangle((0, 0, W, 70), fill=(232, 228, 222, 255))
-    draw.rectangle((0, 1480, W, H), fill=(220, 214, 205, 255))
+    # warm peppa indoor wall + dotted wallpaper
+    draw.rectangle((0, 0, W, 90), fill=(255, 200, 160, 255))
+    for y in range(140, 1400, 70):
+        for x in range(40, W, 70):
+            draw.ellipse((x, y, x + 10, y + 10), fill=(255, 190, 170, 255))
+    draw.rectangle((0, 1480, W, H), fill=(255, 210, 180, 255))
     return img
 
 
@@ -144,84 +179,91 @@ def stick(
     smile: bool = False,
     walk: float = 0.0,
 ) -> None:
-    """Black stick person. cy = feet. walk phase 0..1 animates legs/arms."""
+    """Black stick person with big round Peppa-like head. cy = feet."""
     draw = ImageDraw.Draw(base)
     s = scale
-    head_r = 32 * s
-    body = 105 * s
-    arm = 78 * s
-    leg = 88 * s
-    thick = max(7, int(9 * s))
+    head_r = 42 * s
+    body = 88 * s
+    arm = 70 * s
+    leg = 78 * s
+    thick = max(10, int(12 * s))
     phase = walk * math.pi * 2
     hip_y = cy - leg
     shoulder_y = hip_y - body
-    head_y = shoulder_y - head_r - 4 * s
+    head_y = shoulder_y - head_r + 2 * s
 
-    put_shadow(base, cx, cy + 6, 48 * s, 14 * s)
+    put_shadow(base, cx, cy + 6, 52 * s, 16 * s)
 
-    # head fill + outline for cleaner look
+    # big round white head, thick black outline
     draw.ellipse(
         (cx - head_r, head_y - head_r, cx + head_r, head_y + head_r),
         fill=WHITE,
         outline=INK,
         width=thick,
     )
-    # eyes
-    er = max(2, int(3.2 * s))
-    draw.ellipse((cx - 11 * s - er, head_y - 4 * s - er, cx - 11 * s + er, head_y - 4 * s + er), fill=INK)
-    draw.ellipse((cx + 11 * s - er, head_y - 4 * s - er, cx + 11 * s + er, head_y - 4 * s + er), fill=INK)
+    # simple oval eyes + rosy cheeks
+    er = max(3, int(4.2 * s))
+    draw.ellipse((cx - 14 * s - er, head_y - 6 * s - er, cx - 14 * s + er, head_y - 6 * s + er), fill=INK)
+    draw.ellipse((cx + 14 * s - er, head_y - 6 * s - er, cx + 14 * s + er, head_y - 6 * s + er), fill=INK)
+    draw.ellipse((cx - 28 * s, head_y + 8 * s, cx - 14 * s, head_y + 20 * s), fill=(255, 170, 170, 255))
+    draw.ellipse((cx + 14 * s, head_y + 8 * s, cx + 28 * s, head_y + 20 * s), fill=(255, 170, 170, 255))
     if smile:
         draw.arc(
-            (cx - 15 * s, head_y - 2 * s, cx + 15 * s, head_y + 18 * s),
+            (cx - 18 * s, head_y + 2 * s, cx + 18 * s, head_y + 24 * s),
             15,
             165,
             fill=INK,
-            width=max(3, int(4 * s)),
+            width=max(4, int(5 * s)),
         )
 
-    rounded_line(draw, (cx, head_y + head_r), (cx, hip_y), thick)
-    # arms
-    swing = math.sin(phase) * 18 if walk else 0
+    rounded_line(draw, (cx, head_y + head_r - 2 * s), (cx, hip_y), thick)
+    swing = math.sin(phase) * 16 if walk else 0
     rounded_line(
         draw,
-        (cx, shoulder_y + 12 * s),
-        (cx - arm * 0.9, shoulder_y + arm * 0.65 - swing),
+        (cx, shoulder_y + 14 * s),
+        (cx - arm * 0.9, shoulder_y + arm * 0.6 - swing),
         thick,
     )
     ax = cx + arm * math.cos(math.radians(-20 + wave * 55 + swing * 0.4))
-    ay = shoulder_y + 12 * s + arm * math.sin(math.radians(50 - wave * 40))
-    rounded_line(draw, (cx, shoulder_y + 12 * s), (ax, ay), thick)
-    # legs
-    leg_swing = math.sin(phase) * 22 if walk else 0
-    rounded_line(draw, (cx, hip_y), (cx - 30 * s - leg_swing * 0.3, cy), thick)
-    rounded_line(draw, (cx, hip_y), (cx + 30 * s + leg_swing * 0.3, cy), thick)
+    ay = shoulder_y + 14 * s + arm * math.sin(math.radians(50 - wave * 40))
+    rounded_line(draw, (cx, shoulder_y + 14 * s), (ax, ay), thick)
+    leg_swing = math.sin(phase) * 20 if walk else 0
+    rounded_line(draw, (cx, hip_y), (cx - 28 * s - leg_swing * 0.3, cy), thick)
+    rounded_line(draw, (cx, hip_y), (cx + 28 * s + leg_swing * 0.3, cy), thick)
 
 
 def house(base: Image.Image, x: float, y: float, w: float = 380, h: float = 310) -> None:
     draw = ImageDraw.Draw(base)
     put_shadow(base, x + w / 2, y + h + 18, w * 0.48, 22)
-    roof_h = h * 0.42
-    # body
-    draw.rounded_rectangle((x, y, x + w, y + h), radius=8, outline=INK, width=7, fill=(252, 250, 246))
-    # roof
+    roof_h = h * 0.48
+    # chubby peppa house body
+    draw.rounded_rectangle((x, y, x + w, y + h), radius=28, outline=INK, width=8, fill=HOUSE_WALL)
+    # round red roof
     draw.polygon(
-        [(x - 28, y + 8), (x + w / 2, y - roof_h), (x + w + 28, y + 8)],
-        fill=(196, 72, 68),
+        [(x - 36, y + 18), (x + w / 2, y - roof_h), (x + w + 36, y + 18)],
+        fill=ROOF,
         outline=INK,
     )
-    draw.line([(x - 28, y + 8), (x + w / 2, y - roof_h), (x + w + 28, y + 8)], fill=INK, width=7)
-    # chimney
-    draw.rectangle((x + w * 0.72, y - roof_h + 40, x + w * 0.72 + 36, y - 10), fill=(120, 120, 125), outline=INK, width=4)
+    draw.line([(x - 36, y + 18), (x + w / 2, y - roof_h), (x + w + 36, y + 18)], fill=INK, width=8)
+    # chimney with puff
+    draw.rounded_rectangle(
+        (x + w * 0.72, y - roof_h + 50, x + w * 0.72 + 42, y + 8),
+        radius=8,
+        fill=(255, 190, 120),
+        outline=INK,
+        width=5,
+    )
+    draw.ellipse((x + w * 0.72 + 30, y - roof_h + 10, x + w * 0.72 + 70, y - roof_h + 45), fill=CLOUD, outline=INK, width=3)
     # door
-    dw, dh = 78, 135
+    dw, dh = 86, 140
     dx = x + w / 2 - dw / 2
-    draw.rounded_rectangle((dx, y + h - dh, dx + dw, y + h), radius=6, outline=INK, width=5, fill=(168, 126, 88))
-    draw.ellipse((dx + dw - 22, y + h - dh / 2 - 6, dx + dw - 10, y + h - dh / 2 + 6), fill=GOLD, outline=INK, width=2)
-    # windows
-    for wx in (x + 36, x + w - 36 - 78):
-        draw.rounded_rectangle((wx, y + 55, wx + 78, y + 133), radius=6, outline=INK, width=5, fill=(164, 208, 230))
-        draw.line((wx + 39, y + 55, wx + 39, y + 133), fill=INK, width=3)
-        draw.line((wx, y + 94, wx + 78, y + 94), fill=INK, width=3)
+    draw.rounded_rectangle((dx, y + h - dh, dx + dw, y + h), radius=40, outline=INK, width=6, fill=DOOR)
+    draw.ellipse((dx + dw - 24, y + h - dh / 2 - 8, dx + dw - 8, y + h - dh / 2 + 8), fill=GOLD, outline=INK, width=3)
+    # round windows
+    for wx in (x + 40, x + w - 40 - 86):
+        draw.ellipse((wx, y + 55, wx + 86, y + 141), outline=INK, width=6, fill=WINDOW)
+        draw.line((wx + 43, y + 55, wx + 43, y + 141), fill=INK, width=4)
+        draw.line((wx, y + 98, wx + 86, y + 98), fill=INK, width=4)
 
 
 def phone(base: Image.Image, cx: float, cy: float, lit: bool = True, bounce: float = 0.0) -> None:
@@ -251,104 +293,94 @@ def phone(base: Image.Image, cx: float, cy: float, lit: bool = True, bounce: flo
 def taxi_car(base: Image.Image, cx: float, cy: float, scale: float = 1.0, wheel_spin: float = 0.0) -> None:
     draw = ImageDraw.Draw(base)
     s = scale
-    body_w, body_h = 260 * s, 78 * s
-    cabin_w, cabin_h = 150 * s, 62 * s
+    body_w, body_h = 270 * s, 90 * s
+    cabin_w, cabin_h = 160 * s, 70 * s
     x0 = cx - body_w / 2
     y0 = cy - body_h
     put_shadow(base, cx, cy + 8, body_w * 0.42, 18 * s)
 
-    # body
-    draw.rounded_rectangle((x0, y0, x0 + body_w, y0 + body_h), radius=22, fill=TAXI, outline=INK, width=6)
-    # cabin
+    # chubby cartoon taxi
+    draw.rounded_rectangle((x0, y0, x0 + body_w, y0 + body_h), radius=40, fill=TAXI, outline=INK, width=8)
     draw.rounded_rectangle(
-        (cx - cabin_w / 2, y0 - cabin_h + 14, cx + cabin_w / 2, y0 + 14),
-        radius=18,
+        (cx - cabin_w / 2, y0 - cabin_h + 20, cx + cabin_w / 2, y0 + 20),
+        radius=32,
         fill=TAXI,
         outline=INK,
-        width=6,
+        width=8,
     )
-    # windows
-    draw.rounded_rectangle(
-        (cx - cabin_w / 2 + 14, y0 - cabin_h + 26, cx - 6, y0 + 2),
-        radius=8,
-        fill=(150, 200, 225),
+    draw.ellipse(
+        (cx - cabin_w / 2 + 16, y0 - cabin_h + 30, cx - 4, y0 + 8),
+        fill=WINDOW,
         outline=INK,
-        width=3,
+        width=4,
     )
-    draw.rounded_rectangle(
-        (cx + 6, y0 - cabin_h + 26, cx + cabin_w / 2 - 14, y0 + 2),
-        radius=8,
-        fill=(150, 200, 225),
+    draw.ellipse(
+        (cx + 4, y0 - cabin_h + 30, cx + cabin_w / 2 - 16, y0 + 8),
+        fill=WINDOW,
         outline=INK,
-        width=3,
+        width=4,
     )
-    # headlights / bumper
-    draw.ellipse((x0 + 12, y0 + 28, x0 + 34, y0 + 50), fill=WHITE, outline=INK, width=2)
-    draw.ellipse((x0 + body_w - 34, y0 + 28, x0 + body_w - 12, y0 + 50), fill=(255, 120, 80), outline=INK, width=2)
-    draw.rectangle((x0 + 18, y0 + body_h - 16, x0 + body_w - 18, y0 + body_h - 6), fill=SOFT_INK)
+    draw.ellipse((x0 + 14, y0 + 30, x0 + 42, y0 + 58), fill=WHITE, outline=INK, width=3)
+    draw.ellipse((x0 + body_w - 42, y0 + 30, x0 + body_w - 14, y0 + 58), fill=(255, 140, 90), outline=INK, width=3)
 
-    # wheels with spin marks
     for wx in (cx - 78 * s, cx + 78 * s):
-        draw.ellipse((wx - 26 * s, cy - 26 * s, wx + 26 * s, cy + 26 * s), fill=INK)
-        draw.ellipse((wx - 12 * s, cy - 12 * s, wx + 12 * s, cy + 12 * s), fill=(210, 210, 210))
+        draw.ellipse((wx - 30 * s, cy - 30 * s, wx + 30 * s, cy + 30 * s), fill=INK)
+        draw.ellipse((wx - 14 * s, cy - 14 * s, wx + 14 * s, cy + 14 * s), fill=(255, 230, 80))
         ang = wheel_spin * 360
         for a in (ang, ang + 90):
             rad = math.radians(a)
             draw.line(
-                (wx, cy, wx + 10 * s * math.cos(rad), cy + 10 * s * math.sin(rad)),
+                (wx, cy, wx + 11 * s * math.cos(rad), cy + 11 * s * math.sin(rad)),
                 fill=SOFT_INK,
                 width=3,
             )
 
-    # roof light
     draw.rounded_rectangle(
-        (cx - 34 * s, y0 - cabin_h - 16 * s, cx + 34 * s, y0 - cabin_h + 6),
-        radius=6,
+        (cx - 40 * s, y0 - cabin_h - 14 * s, cx + 40 * s, y0 - cabin_h + 10),
+        radius=12,
         fill=WHITE,
         outline=INK,
-        width=4,
+        width=5,
     )
-    f = ImageFont.truetype(FONT, max(15, int(18 * s)))
+    f = ImageFont.truetype(FONT, max(16, int(20 * s)))
     tw = draw.textlength("TAXI", font=f)
-    draw.text((cx - tw / 2, y0 - cabin_h - 14 * s), "TAXI", font=f, fill=INK)
+    draw.text((cx - tw / 2, y0 - cabin_h - 12 * s), "TAXI", font=f, fill=INK)
 
 
 def suitcase(base: Image.Image, x: float, y: float, scale: float = 1.0) -> None:
     draw = ImageDraw.Draw(base)
     s = scale
     put_shadow(base, x + 28 * s, y + 78 * s, 30 * s, 10 * s)
-    draw.rounded_rectangle((x, y, x + 58 * s, y + 74 * s), radius=10, outline=INK, width=5, fill=(70, 96, 130))
-    draw.line((x + 14 * s, y - 20 * s, x + 44 * s, y - 20 * s), fill=INK, width=5)
-    draw.line((x + 14 * s, y - 20 * s, x + 14 * s, y), fill=INK, width=5)
-    draw.line((x + 44 * s, y - 20 * s, x + 44 * s, y), fill=INK, width=5)
-    draw.line((x + 10 * s, y + 28 * s, x + 48 * s, y + 28 * s), fill=(200, 210, 220), width=3)
+    draw.rounded_rectangle((x, y, x + 60 * s, y + 76 * s), radius=16, outline=INK, width=5, fill=(255, 120, 150))
+    draw.line((x + 14 * s, y - 18 * s, x + 46 * s, y - 18 * s), fill=INK, width=6)
+    draw.line((x + 14 * s, y - 18 * s, x + 14 * s, y), fill=INK, width=6)
+    draw.line((x + 46 * s, y - 18 * s, x + 46 * s, y), fill=INK, width=6)
+    draw.ellipse((x + 20 * s, y + 28 * s, x + 40 * s, y + 48 * s), fill=GOLD, outline=INK, width=3)
 
 
 def airport(base: Image.Image) -> None:
     draw = ImageDraw.Draw(base)
-    # terminal
     put_shadow(base, W / 2, 1295, 420, 24)
-    draw.rounded_rectangle((90, 960, 990, 1290), radius=12, fill=(242, 245, 248), outline=INK, width=7)
-    draw.polygon([(70, 968), (540, 780), (1010, 968)], fill=(210, 220, 230), outline=INK)
-    draw.line([(70, 968), (540, 780), (1010, 968)], fill=INK, width=7)
-    # control tower
-    draw.rectangle((860, 700, 900, 960), fill=(200, 205, 212), outline=INK, width=4)
-    draw.ellipse((835, 650, 925, 720), fill=GOLD, outline=INK, width=4)
-    # glass doors
+    # pastel peppa terminal
+    draw.rounded_rectangle((90, 960, 990, 1290), radius=36, fill=(255, 250, 235), outline=INK, width=8)
+    draw.polygon([(70, 968), (540, 760), (1010, 968)], fill=(255, 170, 180), outline=INK)
+    draw.line([(70, 968), (540, 760), (1010, 968)], fill=INK, width=8)
+    draw.rounded_rectangle((850, 700, 910, 960), radius=16, fill=(255, 210, 120), outline=INK, width=5)
+    draw.ellipse((825, 640, 935, 730), fill=GOLD, outline=INK, width=5)
     for i in range(3):
         x = 230 + i * 200
-        draw.rounded_rectangle((x, 1060, x + 150, 1290), radius=6, outline=INK, width=5, fill=(150, 198, 222))
-        draw.line((x + 75, 1060, x + 75, 1290), fill=INK, width=3)
-    # plane
+        draw.rounded_rectangle((x, 1060, x + 150, 1290), radius=20, outline=INK, width=5, fill=WINDOW)
+        draw.line((x + 75, 1060, x + 75, 1290), fill=INK, width=4)
+    # friendly plane
     px, py = 200, 620
-    draw.ellipse((px, py, px + 190, py + 46), fill=INK)
-    draw.polygon([(px + 50, py + 12), (px + 20, py - 40), (px + 85, py + 12)], fill=INK)
-    draw.polygon([(px + 120, py + 18), (px + 175, py + 70), (px + 105, py + 28)], fill=INK)
+    draw.ellipse((px, py, px + 200, py + 50), fill=WHITE, outline=INK, width=5)
+    draw.polygon([(px + 50, py + 12), (px + 20, py - 40), (px + 90, py + 12)], fill=(255, 170, 180), outline=INK)
+    draw.polygon([(px + 120, py + 18), (px + 180, py + 72), (px + 105, py + 28)], fill=(255, 170, 180), outline=INK)
     f = ImageFont.truetype(FONT, 40)
     t = "ΑΕΡΟΔΡΟΜΙΟ"
     tw = draw.textlength(t, font=f)
-    draw.rounded_rectangle(((W - tw) / 2 - 24, 870, (W + tw) / 2 + 24, 940), radius=14, fill=WHITE, outline=INK, width=4)
-    draw.text(((W - tw) / 2, 882), t, font=f, fill=INK)
+    draw.rounded_rectangle(((W - tw) / 2 - 28, 870, (W + tw) / 2 + 28, 945), radius=22, fill=CAPTION_BG, outline=INK, width=5)
+    draw.text(((W - tw) / 2, 885), t, font=f, fill=INK)
 
 
 def fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_w: float) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -364,19 +396,28 @@ def fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_w: float) -> ImageF
 
 def caption(base: Image.Image, text: str, y: int = 140, sub: str | None = None) -> None:
     draw = ImageDraw.Draw(base)
-    f = fit_text(draw, text, ImageFont.truetype(FONT, 48), 920)
-    tw = draw.textlength(text, font=f)
-    pad_x, pad_y = 32, 20
-    box_h = 56 + pad_y
+    lines = [ln.strip() for ln in text.split("\n") if ln.strip()] or [text]
+    f = ImageFont.truetype(FONT, 44 if len(lines) > 1 else 48)
+    # Shrink until every line fits.
+    for size in range(getattr(f, "size", 48), 30, -2):
+        f = ImageFont.truetype(FONT, size)
+        if all(draw.textlength(ln, font=f) <= 920 for ln in lines):
+            break
+    widths = [draw.textlength(ln, font=f) for ln in lines]
+    tw = max(widths)
+    line_h = int(getattr(f, "size", 44) + 10)
+    pad_x, pad_y = 32, 18
+    box_h = len(lines) * line_h + pad_y
     box = ((W - tw) / 2 - pad_x, y - pad_y, (W + tw) / 2 + pad_x, y + box_h)
     shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).rounded_rectangle(
         (box[0] + 4, box[1] + 6, box[2] + 4, box[3] + 6), radius=22, fill=(0, 0, 0, 40)
     )
     base.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(4)))
-    draw.rounded_rectangle(box, radius=22, fill=WHITE, outline=INK, width=4)
-    th = f.size if hasattr(f, "size") else 48
-    draw.text(((W - tw) / 2, y + (48 - th) / 2), text, font=f, fill=INK)
+    draw.rounded_rectangle(box, radius=28, fill=CAPTION_BG, outline=INK, width=5)
+    for i, ln in enumerate(lines):
+        lw = widths[i]
+        draw.text(((W - lw) / 2, y + i * line_h), ln, font=f, fill=INK)
     if sub:
         fs = fit_text(draw, sub, ImageFont.truetype(FONT_REG, 34), 960)
         sw = draw.textlength(sub, font=fs)
@@ -384,12 +425,14 @@ def caption(base: Image.Image, text: str, y: int = 140, sub: str | None = None) 
 
 
 def road_layer(base: Image.Image, y0: int = 1280, scroll: float = 0.0) -> None:
+    """Soft Peppa-style path on grass — not a real highway."""
     draw = ImageDraw.Draw(base)
-    draw.rectangle((0, y0, W, H), fill=ROAD)
-    draw.rectangle((0, y0, W, y0 + 14), fill=GOLD)
-    for i in range(16):
-        x = (i * 120 - int(scroll) % 120)
-        draw.rounded_rectangle((x, y0 + 210, x + 64, y0 + 228), radius=4, fill=WHITE)
+    draw.rectangle((0, y0, W, H), fill=GRASS)
+    # wide rounded dirt/path band
+    draw.rounded_rectangle((40, y0 + 80, W - 40, H - 40), radius=80, fill=(210, 185, 140), outline=INK, width=6)
+    for i in range(10):
+        x = (i * 140 - int(scroll) % 140)
+        draw.ellipse((x + 40, y0 + 200, x + 100, y0 + 240), fill=(230, 210, 170))
 
 
 BADGE = None
@@ -469,7 +512,7 @@ def scene_start_city(local: float, dur: float, line: str) -> Image.Image:
 def scene_start_airport(local: float, dur: float, line: str) -> Image.Image:
     img = sky_bg()
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1320, W, H), fill=(186, 192, 198))
+    draw.rectangle((0, 1320, W, H), fill=GRASS)
     airport(img)
     k = ease(min(local / max(dur * 0.75, 0.1), 1.0))
     x = lerp(520, 640, k)
@@ -497,17 +540,43 @@ def scene_call(local: float, dur: float, line: str) -> Image.Image:
     return img
 
 
-def scene_pickup(local: float, dur: float, line: str) -> Image.Image:
+def scene_pickup_city(local: float, dur: float, line: str) -> Image.Image:
+    """Taxi arrives at the house — grass yard, no highway."""
     img = sky_bg()
-    road_layer(img, 1280, scroll=local * 120)
-    k = ease(min(local / (dur * 0.6), 1.0))
-    car_x = lerp(-240, 520, k)
-    taxi_car(img, car_x, 1510, scale=1.25, wheel_spin=local * 2.2)
-    if local < dur * 0.75:
-        stick(img, 820, 1510, scale=1.2)
-        suitcase(img, 880, 1435, scale=1.0)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1260, W, H), fill=GRASS)
+    # little flowers
+    for fx, fy, col in ((120, 1420, (255, 120, 160)), (260, 1480, (255, 220, 80)), (940, 1450, (255, 140, 180))):
+        draw.ellipse((fx, fy, fx + 28, fy + 28), fill=col, outline=INK, width=3)
+    house(img, 140, 780)
+    k = ease(min(local / (dur * 0.65), 1.0))
+    car_x = lerp(-220, 560, k)
+    taxi_car(img, car_x, 1505, scale=1.2, wheel_spin=local * 1.6)
+    if local < dur * 0.78:
+        stick(img, 820, 1505, scale=1.2)
+        suitcase(img, 880, 1430, scale=1.0)
     else:
-        stick(img, lerp(820, 560, ease((local - dur * 0.75) / (dur * 0.25))), 1510, scale=1.05)
+        board = ease((local - dur * 0.78) / max(dur * 0.22, 0.01))
+        stick(img, lerp(820, 600, board), 1505, scale=1.08)
+    caption(img, line)
+    return img
+
+
+def scene_pickup_airport(local: float, dur: float, line: str) -> Image.Image:
+    """Taxi arrives at the airport front — terminal + grass, no highway."""
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1320, W, H), fill=GRASS)
+    airport(img)
+    k = ease(min(local / (dur * 0.65), 1.0))
+    car_x = lerp(-220, 500, k)
+    taxi_car(img, car_x, 1565, scale=1.15, wheel_spin=local * 1.6)
+    if local < dur * 0.78:
+        stick(img, 780, 1565, scale=1.2)
+        suitcase(img, 840, 1490, scale=1.0)
+    else:
+        board = ease((local - dur * 0.78) / max(dur * 0.22, 0.01))
+        stick(img, lerp(780, 560, board), 1565, scale=1.08)
     caption(img, line)
     return img
 
@@ -516,12 +585,12 @@ def scene_drive(local: float, dur: float, line: str) -> Image.Image:
     img = sky_bg()
     draw = ImageDraw.Draw(img)
     offset = int(local * 160) % 900
-    draw.ellipse((-200 - offset, 980, 520 - offset, 1500), fill=GRASS)
-    draw.ellipse((500 - offset * 0.6, 1020, 1300 - offset * 0.6, 1520), fill=(136, 174, 120))
+    draw.ellipse((-200 - offset, 980, 520 - offset, 1500), fill=HILL)
+    draw.ellipse((500 - offset * 0.6, 1020, 1300 - offset * 0.6, 1520), fill=HILL2)
     road_layer(img, 1240, scroll=local * 480)
     bounce = math.sin(local * 12) * 4
     taxi_car(img, 540, 1475 + bounce, scale=1.4, wheel_spin=local * 3.5)
-    draw.ellipse((505, 1335 + bounce, 548, 1378 + bounce), fill=WHITE, outline=INK, width=4)
+    draw.ellipse((505, 1335 + bounce, 548, 1378 + bounce), fill=WHITE, outline=INK, width=5)
     caption(img, line)
     return img
 
@@ -530,7 +599,8 @@ SCENES = {
     "start_city": scene_start_city,
     "start_airport": scene_start_airport,
     "call": scene_call,
-    "pickup": scene_pickup,
+    "pickup_city": scene_pickup_city,
+    "pickup_airport": scene_pickup_airport,
     "drive": scene_drive,
 }
 
@@ -589,7 +659,7 @@ async def build_one(slug: str, copy: dict) -> Path:
     for i, (scene_key, line) in enumerate(beats):
         mp3 = work / f"line_{i}.mp3"
         wav = work / f"line_{i}.wav"
-        await speak(line + ".", mp3)
+        await speak(line.replace("\n", " ") + ".", mp3)
         ff("-i", str(mp3), "-ac", "1", "-ar", "44100", str(wav))
         pad = work / f"line_{i}_pad.wav"
         ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{hold:.3f}", str(pad))
