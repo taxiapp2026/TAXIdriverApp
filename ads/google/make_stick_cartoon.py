@@ -41,60 +41,51 @@ ROOM = (244, 241, 236)
 GRASS = (148, 186, 132)
 SHADOW = (0, 0, 0, 55)
 VOICE = "el-GR-NestorasNeural"
-RATE = "-8%"
-TAIL = 1.25  # silence after last spoken word
+RATE = "-16%"  # slower, clearer
+TAIL = 1.4
+LINE_GAP = 0.55  # pause between spoken lines
 
-# Two clear spots: to airport, and the opposite (from airport).
+# 3 simple spots. On-screen text = exactly what is spoken.
+# Each beat: scene key + one clear Greek line.
 VARIANTS = {
-    "to-airport": {
-        "out": ROOT / "taxi-and-fly-stick-pros-aerodromio.mp4",
-        "art": "taxi_and_fly_stick_pros_aerodromio.mp4",
-        "download": "stick-pros-aerodromio.mp4",
-        "spoken": (
-            "Όπου κι αν βρίσκεσαι — αν θες να πας στο αεροδρόμιο, "
-            "κλείσε Taxi and Fly. "
-            "Επαγγελματίες οδηγοί ταξί έρχονται στην ώρα τους "
-            "και σε πάνε με ασφάλεια στο αεροδρόμιο. "
-            "Taxi and Fly. Από και προς Ελ Βενιζέλος, Αθήνα."
-        ),
-        "caps": [
-            ("Όπου κι αν βρίσκεσαι", "Θέλεις να πας αεροδρόμιο;"),
-            ("Κλείσε Taxi and Fly", "Απλά και γρήγορα"),
-            ("Έρχονται στην ώρα τους", "Επαγγελματίες οδηγοί ταξί"),
-            ("Με ασφάλεια", "Προς το αεροδρόμιο"),
-            ("Στο αεροδρόμιο", "Έφτασες ήρεμα και στην ώρα σου"),
+    # 1) Wherever you are → appointment / destination
+    "rantevou": {
+        "out": ROOT / "taxi-and-fly-stick-rantevou.mp4",
+        "art": "taxi_and_fly_stick_rantevou.mp4",
+        "download": "stick-rantevou.mp4",
+        "brand_lines": ["Όπου κι αν πας", "Επαγγελματίες οδηγοί ταξί"],
+        "beats": [
+            ("start_city", "Όπου κι αν βρίσκεσαι"),
+            ("call", "Κλείσε Taxi and Fly"),
+            ("pickup", "Έρχεται το ταξί"),
+            ("drive", "Σε πάει στο ραντεβού σου"),
         ],
-        "brand_lines": [
-            "Από και προς αεροδρόμιο",
-            "Ελ. Βενιζέλος · Αθήνα",
-            "Επαγγελματίες οδηγοί ταξί",
-        ],
-        "direction": "to",
     },
-    "from-airport": {
-        "out": ROOT / "taxi-and-fly-stick-apo-aerodromio.mp4",
-        "art": "taxi_and_fly_stick_apo_aerodromio.mp4",
-        "download": "stick-apo-aerodromio.mp4",
-        "spoken": (
-            "Μόλις προσγειωθείς — αν θες να φύγεις από το αεροδρόμιο, "
-            "κλείσε Taxi and Fly. "
-            "Επαγγελματίες οδηγοί ταξί σε περιμένουν στην ώρα τους "
-            "και σε πάνε με ασφάλεια στον προορισμό σου. "
-            "Taxi and Fly. Από και προς Ελ Βενιζέλος, Αθήνα."
-        ),
-        "caps": [
-            ("Μόλις προσγειωθείς", "Θέλεις να φύγεις από το αεροδρόμιο;"),
-            ("Κλείσε Taxi and Fly", "Απλά και γρήγορα"),
-            ("Σε περιμένουν στην ώρα τους", "Επαγγελματίες οδηγοί ταξί"),
-            ("Με ασφάλεια", "Προς τον προορισμό σου"),
-            ("Στο σπίτι σου", "Έφτασες ήρεμα και στην ώρα σου"),
+    # 2) Just landed → call immediately → destination
+    "prosgeiosi": {
+        "out": ROOT / "taxi-and-fly-stick-prosgeiosi.mp4",
+        "art": "taxi_and_fly_stick_prosgeiosi.mp4",
+        "download": "stick-prosgeiosi.mp4",
+        "brand_lines": ["Μόλις προσγειωθείς", "Κατευθείαν στον προορισμό σου"],
+        "beats": [
+            ("start_airport", "Μόλις προσγειωθείς"),
+            ("call", "Καλείς κατευθείαν Taxi and Fly"),
+            ("pickup", "Έρχεται το ταξί"),
+            ("drive", "Σε πάει στον προορισμό σου"),
         ],
-        "brand_lines": [
-            "Από και προς αεροδρόμιο",
-            "Ελ. Βενιζέλος · Αθήνα",
-            "Επαγγελματίες οδηγοί ταξί",
+    },
+    # 3) Athens → airport
+    "athina-aerodromio": {
+        "out": ROOT / "taxi-and-fly-stick-athina-aerodromio.mp4",
+        "art": "taxi_and_fly_stick_athina_aerodromio.mp4",
+        "download": "stick-athina-aerodromio.mp4",
+        "brand_lines": ["Αθήνα προς αεροδρόμιο", "Ελ. Βενιζέλος"],
+        "beats": [
+            ("start_city", "Από την Αθήνα"),
+            ("call", "Κλείσε Taxi and Fly"),
+            ("pickup", "Έρχεται το ταξί"),
+            ("drive", "Σε πάει στο αεροδρόμιο"),
         ],
-        "direction": "from",
     },
 }
 
@@ -458,121 +449,90 @@ def brand_end(t: float, start: float, lines: list[str]) -> Image.Image:
     return img
 
 
-def scene_start(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
-    title, sub = copy["caps"][0]
-    if direction == "to":
-        img = sky_bg()
-        draw = ImageDraw.Draw(img)
-        draw.rectangle((0, 1260, W, H), fill=GRASS)
-        for i in range(40):
-            a = int(18 * (1 - i / 40))
-            draw.line((0, 1260 - i, W, 1260 - i), fill=(255, 255, 255, a))
-        house(img, 170, 760)
-        k = ease(min(local / max(dur * 0.7, 0.1), 1.0))
-        x = lerp(700, 780, k)
-        walk = local * 1.4 if local < dur * 0.7 else 0.0
-        stick(img, x, 1370, scale=1.25, walk=walk)
-        suitcase(img, x + 62, 1295, scale=1.05)
-    else:
-        img = sky_bg()
-        draw = ImageDraw.Draw(img)
-        draw.rectangle((0, 1320, W, H), fill=(186, 192, 198))
-        airport(img)
-        k = ease(min(local / max(dur * 0.7, 0.1), 1.0))
-        x = lerp(520, 640, k)
-        stick(img, x, 1560, scale=1.25, walk=local * 1.2 if local < dur * 0.7 else 0.0, smile=True)
-        suitcase(img, x + 62, 1485, scale=1.05)
-    caption(img, title, sub=sub)
+def scene_start_city(local: float, dur: float, line: str) -> Image.Image:
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1260, W, H), fill=GRASS)
+    for i in range(40):
+        a = int(18 * (1 - i / 40))
+        draw.line((0, 1260 - i, W, 1260 - i), fill=(255, 255, 255, a))
+    house(img, 170, 760)
+    k = ease(min(local / max(dur * 0.75, 0.1), 1.0))
+    x = lerp(700, 780, k)
+    walk = local * 1.1 if local < dur * 0.75 else 0.0
+    stick(img, x, 1370, scale=1.25, walk=walk)
+    suitcase(img, x + 62, 1295, scale=1.05)
+    caption(img, line)
     return img
 
 
-def scene_call(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
-    title, sub = copy["caps"][1]
+def scene_start_airport(local: float, dur: float, line: str) -> Image.Image:
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1320, W, H), fill=(186, 192, 198))
+    airport(img)
+    k = ease(min(local / max(dur * 0.75, 0.1), 1.0))
+    x = lerp(520, 640, k)
+    stick(img, x, 1560, scale=1.25, walk=local * 1.0 if local < dur * 0.75 else 0.0, smile=True)
+    suitcase(img, x + 62, 1485, scale=1.05)
+    caption(img, line)
+    return img
+
+
+def scene_call(local: float, dur: float, line: str) -> Image.Image:
     img = room_bg()
-    bob = math.sin(local * 5.5) * 10
+    bob = math.sin(local * 4.2) * 8
     phone(img, W / 2, 720, lit=True, bounce=bob)
     stick(img, W / 2, 1520, scale=1.15)
     draw = ImageDraw.Draw(img)
     for i in range(3):
-        pulse = 0.4 + 0.6 * abs(math.sin(local * 7 + i))
+        pulse = 0.4 + 0.6 * abs(math.sin(local * 5 + i))
         r = 8 + 4 * pulse
         x = W / 2 + 110 + i * 28
         draw.ellipse(
             (x - r, 640 - r + bob, x + r, 640 + r + bob),
             fill=mix_rgb(GOLD, (255, 255, 255), 1 - pulse) + (255,),
         )
-    caption(img, title, sub=sub)
+    caption(img, line)
     return img
 
 
-def scene_pickup(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
-    title, sub = copy["caps"][2]
+def scene_pickup(local: float, dur: float, line: str) -> Image.Image:
     img = sky_bg()
-    if direction == "from":
-        draw = ImageDraw.Draw(img)
-        draw.rectangle((0, 1280, W, 1320), fill=(186, 192, 198))
-        # small terminal cue in background
-        draw.rounded_rectangle((80, 900, 420, 1180), radius=10, fill=(242, 245, 248), outline=INK, width=5)
-    road_layer(img, 1280, scroll=local * 180)
-    k = ease(min(local / (dur * 0.55), 1.0))
+    road_layer(img, 1280, scroll=local * 120)
+    k = ease(min(local / (dur * 0.6), 1.0))
     car_x = lerp(-240, 520, k)
-    taxi_car(img, car_x, 1510, scale=1.25, wheel_spin=local * 3)
-    if local < dur * 0.72:
+    taxi_car(img, car_x, 1510, scale=1.25, wheel_spin=local * 2.2)
+    if local < dur * 0.75:
         stick(img, 820, 1510, scale=1.2)
         suitcase(img, 880, 1435, scale=1.0)
     else:
-        stick(img, lerp(820, 560, ease((local - dur * 0.72) / (dur * 0.28))), 1510, scale=1.05)
-    caption(img, title, sub=sub)
+        stick(img, lerp(820, 560, ease((local - dur * 0.75) / (dur * 0.25))), 1510, scale=1.05)
+    caption(img, line)
     return img
 
 
-def scene_drive(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
-    title, sub = copy["caps"][3]
+def scene_drive(local: float, dur: float, line: str) -> Image.Image:
     img = sky_bg()
     draw = ImageDraw.Draw(img)
-    offset = int(local * 220) % 900
+    offset = int(local * 160) % 900
     draw.ellipse((-200 - offset, 980, 520 - offset, 1500), fill=GRASS)
     draw.ellipse((500 - offset * 0.6, 1020, 1300 - offset * 0.6, 1520), fill=(136, 174, 120))
-    road_layer(img, 1240, scroll=local * 720)
-    bounce = math.sin(local * 16) * 5
-    taxi_car(img, 540, 1475 + bounce, scale=1.4, wheel_spin=local * 5)
+    road_layer(img, 1240, scroll=local * 480)
+    bounce = math.sin(local * 12) * 4
+    taxi_car(img, 540, 1475 + bounce, scale=1.4, wheel_spin=local * 3.5)
     draw.ellipse((505, 1335 + bounce, 548, 1378 + bounce), fill=WHITE, outline=INK, width=4)
-    caption(img, title, sub=sub)
+    caption(img, line)
     return img
 
 
-def scene_arrive(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
-    title, sub = copy["caps"][4]
-    img = sky_bg()
-    draw = ImageDraw.Draw(img)
-    if direction == "to":
-        draw.rectangle((0, 1320, W, H), fill=(186, 192, 198))
-        airport(img)
-        ground_y = 1580
-    else:
-        draw.rectangle((0, 1260, W, H), fill=GRASS)
-        house(img, 170, 760)
-        ground_y = 1370
-    arrive = ease(min(local / (dur * 0.35), 1.0))
-    car_x = lerp(420, 260, arrive)
-    if local < dur * 0.75:
-        taxi_car(img, car_x, ground_y if direction == "to" else 1510, scale=1.1, wheel_spin=max(0, 1.2 - arrive) * local)
-    exit_k = ease(max((local - dur * 0.28) / (dur * 0.55), 0.0))
-    fig_x = lerp(420, 640, exit_k)
-    wave = ease(max((local - dur * 0.4) / (dur * 0.4), 0.0))
-    fy = ground_y if direction == "to" else 1370
-    stick(
-        img,
-        fig_x,
-        fy,
-        scale=1.28,
-        wave=wave,
-        smile=local > dur * 0.35,
-        walk=exit_k * 0.8 if exit_k < 0.95 else 0,
-    )
-    suitcase(img, fig_x + 68, fy - 75, scale=1.05)
-    caption(img, title, sub=sub)
-    return img
+SCENES = {
+    "start_city": scene_start_city,
+    "start_airport": scene_start_airport,
+    "call": scene_call,
+    "pickup": scene_pickup,
+    "drive": scene_drive,
+}
 
 
 async def speak(text: str, dst: Path) -> None:
@@ -619,58 +579,63 @@ def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None
 async def build_one(slug: str, copy: dict) -> Path:
     work = BUILD / slug
     work.mkdir(parents=True, exist_ok=True)
-    direction = copy["direction"]
     out: Path = copy["out"]
+    beats: list[tuple[str, str]] = list(copy["beats"])
 
-    vo_mp3 = work / "vo.mp3"
-    await speak(copy["spoken"], vo_mp3)
+    # Speak each line alone. Screen text == spoken line. Slow + simple.
+    parts: list[Path] = []
+    scene_durs: list[float] = []
+    hold = 0.85  # quiet beat after each line (same on video + audio)
+    for i, (scene_key, line) in enumerate(beats):
+        mp3 = work / f"line_{i}.mp3"
+        wav = work / f"line_{i}.wav"
+        await speak(line + ".", mp3)
+        ff("-i", str(mp3), "-ac", "1", "-ar", "44100", str(wav))
+        pad = work / f"line_{i}_pad.wav"
+        ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{hold:.3f}", str(pad))
+        d = duration(wav) + hold
+        scene_durs.append(d)
+        parts.extend([wav, pad])
+        print(f"[{slug}] {scene_key}: «{line}» {d:.2f}s")
+
+    brand_mp3 = work / "brand.mp3"
+    brand_wav = work / "brand.wav"
+    await speak("Taxi and Fly.", brand_mp3)
+    ff("-i", str(brand_mp3), "-ac", "1", "-ar", "44100", str(brand_wav))
+    brand_pad = work / "brand_pad.wav"
+    ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{TAIL:.3f}", str(brand_pad))
+    brand_voice = duration(brand_wav)
+    brand_dur = brand_voice + TAIL + 1.6
+    parts.extend([brand_wav, brand_pad])
+
+    lst = work / "vo_join.txt"
+    lst.write_text("".join(f"file '{p.resolve()}'\n" for p in parts))
     vo_wav = work / "vo.wav"
-    ff("-i", str(vo_mp3), "-ac", "1", "-ar", "44100", str(vo_wav))
-    vo_len = duration(vo_wav)
-    total = vo_len + TAIL
-    print(f"[{slug}] VO {vo_len:.2f}s → video {total:.2f}s")
+    ff("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(vo_wav))
 
-    # Longer brand hold so the closing lines are never clipped.
-    brand_dur = max(7.0, total * 0.40)
-    story_dur = total - brand_dur
-    beats = [
-        ("start", 0.18, scene_start),
-        ("call", 0.18, scene_call),
-        ("pickup", 0.20, scene_pickup),
-        ("drive", 0.18, scene_drive),
-        ("arrive", 0.26, scene_arrive),
-    ]
+    story_dur = sum(scene_durs)
+    brand_start = story_dur
+    total = story_dur + brand_dur
+    print(f"[{slug}] total {total:.2f}s (story {story_dur:.2f}s + brand {brand_dur:.2f}s)")
 
     frames_dir = work / "frames"
     shutil.rmtree(frames_dir, ignore_errors=True)
     frames_dir.mkdir(parents=True)
 
-    brand_start = story_dur
-    t = 0.0
     idx = 0
-    for name, frac, fn in beats:
-        seconds = story_dur * frac
+    for (scene_key, line), seconds in zip(beats, scene_durs):
+        fn = SCENES[scene_key]
         n = int(round(seconds * FPS))
         for i in range(n):
-            local = i / FPS
-            img = fn(local, seconds, copy, direction)
+            img = fn(i / FPS, seconds, line)
             img.convert("RGB").save(frames_dir / f"{idx:05d}.png")
             idx += 1
-        t += seconds
-        print(f"[{slug}] scene {name} {seconds:.2f}s")
 
     need = int(round(total * FPS))
     while idx < need:
         img = brand_end(idx / FPS, brand_start, copy["brand_lines"])
         img.convert("RGB").save(frames_dir / f"{idx:05d}.png")
         idx += 1
-    # Also fill brand portion if beats undershot due to rounding
-    brand_frames_needed = need - int(round(story_dur * FPS))
-    # rewrite brand span cleanly
-    brand_from = max(0, need - max(brand_frames_needed, int(round(brand_dur * FPS))))
-    for i in range(brand_from, need):
-        img = brand_end(i / FPS, brand_start, copy["brand_lines"])
-        img.convert("RGB").save(frames_dir / f"{i:05d}.png")
 
     silent = work / "silent.mp4"
     ff(
@@ -688,7 +653,7 @@ async def build_one(slug: str, copy: dict) -> Path:
     bed = work / "bed.wav"
     pretty_music(vlen + 0.5, bed)
     sting = work / "sting.wav"
-    logo_sting(vlen + 0.5, brand_start + 0.18, sting)
+    logo_sting(vlen + 0.5, brand_start + 0.15, sting)
     audio = work / "mix.m4a"
     mix_audio(vo_wav, bed, sting, vlen, audio)
 
@@ -708,15 +673,13 @@ async def build_one(slug: str, copy: dict) -> Path:
     data = out.read_bytes()
     (ART / copy["art"]).write_bytes(data)
     (ART / "downloads" / copy["download"]).write_bytes(data)
-    # Keep legacy filename pointing at the to-airport spot.
-    if slug == "to-airport":
+    if slug == "athina-aerodromio":
         legacy = ROOT / "taxi-and-fly-stick-cartoon.mp4"
         legacy.write_bytes(data)
         (ART / "taxi_and_fly_stick_cartoon.mp4").write_bytes(data)
-        (ART / "downloads" / "stick-cartoon-taxi-and-fly.mp4").write_bytes(data)
 
     shutil.rmtree(frames_dir, ignore_errors=True)
-    print("Wrote", out, "video", round(duration(out), 2), "s", "vo", round(vo_len, 2), "s")
+    print("Wrote", out.name, round(duration(out), 2), "s")
     return out
 
 
