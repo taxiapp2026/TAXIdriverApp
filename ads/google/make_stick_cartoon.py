@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Simple black stick-figure cartoon: home → Taxi and Fly → airport → brand."""
+"""Professional black stick-figure cartoon for Taxi and Fly.
+
+home → call app → taxi pickup → drive → happy airport drop-off → brand.
+Video length follows the voiceover so nothing is cut off.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +16,7 @@ from pathlib import Path
 
 import edge_tts
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build" / "stick"
@@ -27,18 +31,22 @@ from spot_audio import logo_sting  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
 GOLD = (255, 210, 40)
-WHITE = (245, 245, 245)
-INK = (22, 22, 22)
-TAXI = (255, 210, 40)
-ROAD = (55, 58, 65)
-SKY = (214, 228, 240)
-ROOM = (236, 232, 224)
-GRASS = (170, 196, 150)
+WHITE = (250, 250, 250)
+INK = (18, 18, 20)
+SOFT_INK = (40, 42, 48)
+TAXI = (255, 204, 0)
+ROAD = (48, 52, 60)
+SKY_TOP = (186, 214, 236)
+SKY_BOT = (232, 240, 246)
+ROOM = (244, 241, 236)
+GRASS = (148, 186, 132)
+SHADOW = (0, 0, 0, 55)
 VOICE = "el-GR-NestorasNeural"
-RATE = "-6%"
+RATE = "-8%"
+TAIL = 1.15  # silence after last spoken word
 
 SPOKEN = (
-    "Σπίτι. Πατάς Taxi and Fly. "
+    "Είσαι σπίτι. Πατάς Taxi and Fly. "
     "Έρχεται το ταξί. Σε αφήνει χαρούμενο στο αεροδρόμιο. "
     "Taxi and Fly. Από και προς το αεροδρόμιο Ελ Βενιζέλος, Αθήνα. "
     "Εφαρμογή με επαγγελματίες οδηγούς ταξί."
@@ -50,171 +58,289 @@ def ease(k: float) -> float:
     return 1 - (1 - k) ** 3
 
 
-def stick(draw: ImageDraw.ImageDraw, cx: float, cy: float, scale: float = 1.0, wave: float = 0.0, smile: bool = False) -> None:
-    """Black stick person. cy is feet. wave: arm angle offset."""
+def lerp(a: float, b: float, k: float) -> float:
+    return a + (b - a) * k
+
+
+def mix_rgb(a, b, k: float):
+    k = max(0.0, min(k, 1.0))
+    return tuple(int(a[i] + (b[i] - a[i]) * k) for i in range(3))
+
+
+def sky_bg() -> Image.Image:
+    arr = np.zeros((H, W, 3), dtype=np.uint8)
+    for y in range(H):
+        k = y / (H - 1)
+        arr[y, :] = mix_rgb(SKY_TOP, SKY_BOT, k)
+    return Image.fromarray(arr, "RGB").convert("RGBA")
+
+
+def room_bg() -> Image.Image:
+    img = Image.new("RGBA", (W, H), ROOM + (255,))
+    draw = ImageDraw.Draw(img)
+    # subtle wall panel
+    draw.rectangle((0, 0, W, 70), fill=(232, 228, 222, 255))
+    draw.rectangle((0, 1480, W, H), fill=(220, 214, 205, 255))
+    return img
+
+
+def put_shadow(base: Image.Image, cx: float, cy: float, rx: float, ry: float) -> None:
+    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shadow)
+    sd.ellipse((cx - rx, cy - ry, cx + rx, cy + ry), fill=SHADOW)
+    base.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(10)))
+
+
+def rounded_line(draw, a, b, width: int, fill=INK) -> None:
+    draw.line([a, b], fill=fill, width=width)
+    r = width / 2
+    for x, y in (a, b):
+        draw.ellipse((x - r, y - r, x + r, y + r), fill=fill)
+
+
+def stick(
+    base: Image.Image,
+    cx: float,
+    cy: float,
+    scale: float = 1.0,
+    wave: float = 0.0,
+    smile: bool = False,
+    walk: float = 0.0,
+) -> None:
+    """Black stick person. cy = feet. walk phase 0..1 animates legs/arms."""
+    draw = ImageDraw.Draw(base)
     s = scale
-    head_r = 28 * s
-    body = 95 * s
-    arm = 70 * s
-    leg = 80 * s
-    thick = max(6, int(8 * s))
-    head_y = cy - leg - body - head_r
+    head_r = 32 * s
+    body = 105 * s
+    arm = 78 * s
+    leg = 88 * s
+    thick = max(7, int(9 * s))
+    phase = walk * math.pi * 2
     hip_y = cy - leg
     shoulder_y = hip_y - body
+    head_y = shoulder_y - head_r - 4 * s
 
+    put_shadow(base, cx, cy + 6, 48 * s, 14 * s)
+
+    # head fill + outline for cleaner look
     draw.ellipse(
         (cx - head_r, head_y - head_r, cx + head_r, head_y + head_r),
+        fill=WHITE,
         outline=INK,
         width=thick,
     )
+    # eyes
+    er = max(2, int(3.2 * s))
+    draw.ellipse((cx - 11 * s - er, head_y - 4 * s - er, cx - 11 * s + er, head_y - 4 * s + er), fill=INK)
+    draw.ellipse((cx + 11 * s - er, head_y - 4 * s - er, cx + 11 * s + er, head_y - 4 * s + er), fill=INK)
     if smile:
         draw.arc(
-            (cx - 14 * s, head_y - 4 * s, cx + 14 * s, head_y + 16 * s),
-            20,
-            160,
+            (cx - 15 * s, head_y - 2 * s, cx + 15 * s, head_y + 18 * s),
+            15,
+            165,
             fill=INK,
             width=max(3, int(4 * s)),
         )
-    draw.line((cx, head_y + head_r, cx, hip_y), fill=INK, width=thick)
+
+    rounded_line(draw, (cx, head_y + head_r), (cx, hip_y), thick)
     # arms
-    draw.line(
-        (cx, shoulder_y + 10 * s, cx - arm * 0.85, shoulder_y + arm * 0.7),
-        fill=INK,
-        width=thick,
+    swing = math.sin(phase) * 18 if walk else 0
+    rounded_line(
+        draw,
+        (cx, shoulder_y + 12 * s),
+        (cx - arm * 0.9, shoulder_y + arm * 0.65 - swing),
+        thick,
     )
-    ax = cx + arm * math.cos(math.radians(-25 + wave * 50))
-    ay = shoulder_y + 10 * s + arm * math.sin(math.radians(55 - wave * 35))
-    draw.line((cx, shoulder_y + 10 * s, ax, ay), fill=INK, width=thick)
+    ax = cx + arm * math.cos(math.radians(-20 + wave * 55 + swing * 0.4))
+    ay = shoulder_y + 12 * s + arm * math.sin(math.radians(50 - wave * 40))
+    rounded_line(draw, (cx, shoulder_y + 12 * s), (ax, ay), thick)
     # legs
-    draw.line((cx, hip_y, cx - 28 * s, cy), fill=INK, width=thick)
-    draw.line((cx, hip_y, cx + 28 * s, cy), fill=INK, width=thick)
+    leg_swing = math.sin(phase) * 22 if walk else 0
+    rounded_line(draw, (cx, hip_y), (cx - 30 * s - leg_swing * 0.3, cy), thick)
+    rounded_line(draw, (cx, hip_y), (cx + 30 * s + leg_swing * 0.3, cy), thick)
 
 
-def house(draw: ImageDraw.ImageDraw, x: float, y: float, w: float = 340, h: float = 280) -> None:
-    roof_h = h * 0.45
-    draw.rectangle((x, y, x + w, y + h), outline=INK, width=8, fill=(250, 248, 242))
+def house(base: Image.Image, x: float, y: float, w: float = 380, h: float = 310) -> None:
+    draw = ImageDraw.Draw(base)
+    put_shadow(base, x + w / 2, y + h + 18, w * 0.48, 22)
+    roof_h = h * 0.42
+    # body
+    draw.rounded_rectangle((x, y, x + w, y + h), radius=8, outline=INK, width=7, fill=(252, 250, 246))
+    # roof
     draw.polygon(
-        [(x - 20, y), (x + w / 2, y - roof_h), (x + w + 20, y)],
+        [(x - 28, y + 8), (x + w / 2, y - roof_h), (x + w + 28, y + 8)],
+        fill=(196, 72, 68),
         outline=INK,
-        fill=(230, 90, 80),
     )
-    draw.line([(x - 20, y), (x + w / 2, y - roof_h), (x + w + 20, y)], fill=INK, width=8)
-    # door + window
-    dw, dh = 70, 120
+    draw.line([(x - 28, y + 8), (x + w / 2, y - roof_h), (x + w + 28, y + 8)], fill=INK, width=7)
+    # chimney
+    draw.rectangle((x + w * 0.72, y - roof_h + 40, x + w * 0.72 + 36, y - 10), fill=(120, 120, 125), outline=INK, width=4)
+    # door
+    dw, dh = 78, 135
     dx = x + w / 2 - dw / 2
-    draw.rectangle((dx, y + h - dh, dx + dw, y + h), outline=INK, width=6, fill=(210, 180, 140))
-    wx, wy, ww = x + 40, y + 50, 70
-    draw.rectangle((wx, wy, wx + ww, wy + ww), outline=INK, width=6, fill=(180, 215, 235))
-    draw.line((wx + ww / 2, wy, wx + ww / 2, wy + ww), fill=INK, width=4)
-    draw.line((wx, wy + ww / 2, wx + ww, wy + ww / 2), fill=INK, width=4)
+    draw.rounded_rectangle((dx, y + h - dh, dx + dw, y + h), radius=6, outline=INK, width=5, fill=(168, 126, 88))
+    draw.ellipse((dx + dw - 22, y + h - dh / 2 - 6, dx + dw - 10, y + h - dh / 2 + 6), fill=GOLD, outline=INK, width=2)
+    # windows
+    for wx in (x + 36, x + w - 36 - 78):
+        draw.rounded_rectangle((wx, y + 55, wx + 78, y + 133), radius=6, outline=INK, width=5, fill=(164, 208, 230))
+        draw.line((wx + 39, y + 55, wx + 39, y + 133), fill=INK, width=3)
+        draw.line((wx, y + 94, wx + 78, y + 94), fill=INK, width=3)
 
 
-def phone(draw: ImageDraw.ImageDraw, cx: float, cy: float, lit: bool = True) -> None:
-    pw, ph = 120, 210
-    x0, y0 = cx - pw / 2, cy - ph / 2
-    draw.rounded_rectangle((x0, y0, x0 + pw, y0 + ph), radius=22, fill=INK)
-    screen = GOLD if lit else (40, 40, 40)
-    draw.rounded_rectangle((x0 + 10, y0 + 22, x0 + pw - 10, y0 + ph - 28), radius=12, fill=screen)
+def phone(base: Image.Image, cx: float, cy: float, lit: bool = True, bounce: float = 0.0) -> None:
+    draw = ImageDraw.Draw(base)
+    pw, ph = 150, 270
+    x0, y0 = cx - pw / 2, cy - ph / 2 + bounce
+    put_shadow(base, cx, y0 + ph + 10, 70, 16)
+    draw.rounded_rectangle((x0 - 4, y0 - 4, x0 + pw + 4, y0 + ph + 4), radius=30, fill=(0, 0, 0, 40))
+    draw.rounded_rectangle((x0, y0, x0 + pw, y0 + ph), radius=28, fill=INK)
+    screen = GOLD if lit else (35, 35, 38)
+    draw.rounded_rectangle((x0 + 12, y0 + 28, x0 + pw - 12, y0 + ph - 34), radius=16, fill=screen)
+    # notch
+    draw.rounded_rectangle((cx - 22, y0 + 12, cx + 22, y0 + 22), radius=4, fill=(50, 50, 50))
     if lit:
-        f = ImageFont.truetype(FONT, 18)
+        f = ImageFont.truetype(FONT, 20)
         t = "Taxi and Fly"
         tw = draw.textlength(t, font=f)
-        draw.text((cx - tw / 2, cy - 10), t, font=f, fill=INK)
+        draw.text((cx - tw / 2, cy - 8 + bounce), t, font=f, fill=INK)
+        # app glyph ring
+        draw.ellipse((cx - 34, cy - 70 + bounce, cx + 34, cy - 2 + bounce), outline=INK, width=4)
+        f2 = ImageFont.truetype(FONT, 14)
+        for i, word in enumerate(("Taxi", "Fly")):
+            ww = draw.textlength(word, font=f2)
+            draw.text((cx - ww / 2, cy - 58 + bounce + i * 18), word, font=f2, fill=INK)
 
 
-def taxi_car(draw: ImageDraw.ImageDraw, cx: float, cy: float, scale: float = 1.0) -> None:
+def taxi_car(base: Image.Image, cx: float, cy: float, scale: float = 1.0, wheel_spin: float = 0.0) -> None:
+    draw = ImageDraw.Draw(base)
     s = scale
-    body_w, body_h = 220 * s, 70 * s
-    cabin_w, cabin_h = 130 * s, 55 * s
+    body_w, body_h = 260 * s, 78 * s
+    cabin_w, cabin_h = 150 * s, 62 * s
     x0 = cx - body_w / 2
     y0 = cy - body_h
-    draw.rounded_rectangle((x0, y0, x0 + body_w, y0 + body_h), radius=18, fill=TAXI, outline=INK, width=6)
+    put_shadow(base, cx, cy + 8, body_w * 0.42, 18 * s)
+
+    # body
+    draw.rounded_rectangle((x0, y0, x0 + body_w, y0 + body_h), radius=22, fill=TAXI, outline=INK, width=6)
+    # cabin
     draw.rounded_rectangle(
-        (cx - cabin_w / 2, y0 - cabin_h + 10, cx + cabin_w / 2, y0 + 10),
-        radius=14,
+        (cx - cabin_w / 2, y0 - cabin_h + 14, cx + cabin_w / 2, y0 + 14),
+        radius=18,
         fill=TAXI,
         outline=INK,
         width=6,
     )
     # windows
-    draw.rectangle(
-        (cx - cabin_w / 2 + 12, y0 - cabin_h + 22, cx - 8, y0 - 4),
-        fill=(170, 210, 230),
-        outline=INK,
-        width=3,
-    )
-    draw.rectangle(
-        (cx + 8, y0 - cabin_h + 22, cx + cabin_w / 2 - 12, y0 - 4),
-        fill=(170, 210, 230),
-        outline=INK,
-        width=3,
-    )
-    # wheels
-    for wx in (cx - 70 * s, cx + 70 * s):
-        draw.ellipse((wx - 22 * s, cy - 22 * s, wx + 22 * s, cy + 22 * s), fill=INK)
-        draw.ellipse((wx - 10 * s, cy - 10 * s, wx + 10 * s, cy + 10 * s), fill=(200, 200, 200))
-    # roof sign
-    draw.rectangle((cx - 28 * s, y0 - cabin_h - 18 * s, cx + 28 * s, y0 - cabin_h + 4), fill=WHITE, outline=INK, width=4)
-    f = ImageFont.truetype(FONT, max(14, int(16 * s)))
-    tw = draw.textlength("TAXI", font=f)
-    draw.text((cx - tw / 2, y0 - cabin_h - 16 * s), "TAXI", font=f, fill=INK)
-
-
-def suitcase(draw: ImageDraw.ImageDraw, x: float, y: float) -> None:
-    draw.rounded_rectangle((x, y, x + 55, y + 70), radius=8, outline=INK, width=5, fill=(90, 110, 140))
-    draw.line((x + 12, y - 18, x + 43, y - 18), fill=INK, width=5)
-    draw.line((x + 12, y - 18, x + 12, y), fill=INK, width=5)
-    draw.line((x + 43, y - 18, x + 43, y), fill=INK, width=5)
-
-
-def airport(draw: ImageDraw.ImageDraw) -> None:
-    # terminal block
-    draw.rectangle((80, 980, 1000, 1280), fill=(235, 238, 242), outline=INK, width=8)
-    draw.polygon([(60, 980), (540, 820), (1020, 980)], fill=(200, 210, 220), outline=INK)
-    draw.line([(60, 980), (540, 820), (1020, 980)], fill=INK, width=8)
-    # glass doors
-    for i in range(3):
-        x = 220 + i * 200
-        draw.rectangle((x, 1080, x + 140, 1280), outline=INK, width=5, fill=(160, 200, 225))
-    # plane silhouette
-    px, py = 780, 700
-    draw.ellipse((px, py, px + 160, py + 40), fill=INK)
-    draw.polygon([(px + 40, py + 10), (px + 10, py - 35), (px + 70, py + 10)], fill=INK)
-    draw.polygon([(px + 100, py + 15), (px + 150, py + 55), (px + 90, py + 25)], fill=INK)
-    f = ImageFont.truetype(FONT, 36)
-    t = "ΑΕΡΟΔΡΟΜΙΟ"
-    tw = draw.textlength(t, font=f)
-    draw.text(((W - tw) / 2, 900), t, font=f, fill=INK)
-
-
-def caption(draw: ImageDraw.ImageDraw, text: str, y: int = 160) -> None:
-    f = ImageFont.truetype(FONT, 52)
-    tw = draw.textlength(text, font=f)
-    pad = 28
     draw.rounded_rectangle(
-        ((W - tw) / 2 - pad, y - 18, (W + tw) / 2 + pad, y + 70),
-        radius=20,
-        fill=(255, 255, 255, 220) if False else (255, 255, 255),
+        (cx - cabin_w / 2 + 14, y0 - cabin_h + 26, cx - 6, y0 + 2),
+        radius=8,
+        fill=(150, 200, 225),
+        outline=INK,
+        width=3,
+    )
+    draw.rounded_rectangle(
+        (cx + 6, y0 - cabin_h + 26, cx + cabin_w / 2 - 14, y0 + 2),
+        radius=8,
+        fill=(150, 200, 225),
+        outline=INK,
+        width=3,
+    )
+    # headlights / bumper
+    draw.ellipse((x0 + 12, y0 + 28, x0 + 34, y0 + 50), fill=WHITE, outline=INK, width=2)
+    draw.ellipse((x0 + body_w - 34, y0 + 28, x0 + body_w - 12, y0 + 50), fill=(255, 120, 80), outline=INK, width=2)
+    draw.rectangle((x0 + 18, y0 + body_h - 16, x0 + body_w - 18, y0 + body_h - 6), fill=SOFT_INK)
+
+    # wheels with spin marks
+    for wx in (cx - 78 * s, cx + 78 * s):
+        draw.ellipse((wx - 26 * s, cy - 26 * s, wx + 26 * s, cy + 26 * s), fill=INK)
+        draw.ellipse((wx - 12 * s, cy - 12 * s, wx + 12 * s, cy + 12 * s), fill=(210, 210, 210))
+        ang = wheel_spin * 360
+        for a in (ang, ang + 90):
+            rad = math.radians(a)
+            draw.line(
+                (wx, cy, wx + 10 * s * math.cos(rad), cy + 10 * s * math.sin(rad)),
+                fill=SOFT_INK,
+                width=3,
+            )
+
+    # roof light
+    draw.rounded_rectangle(
+        (cx - 34 * s, y0 - cabin_h - 16 * s, cx + 34 * s, y0 - cabin_h + 6),
+        radius=6,
+        fill=WHITE,
         outline=INK,
         width=4,
     )
-    draw.text(((W - tw) / 2, y), text, font=f, fill=INK)
+    f = ImageFont.truetype(FONT, max(15, int(18 * s)))
+    tw = draw.textlength("TAXI", font=f)
+    draw.text((cx - tw / 2, y0 - cabin_h - 14 * s), "TAXI", font=f, fill=INK)
 
 
-def badge() -> Image.Image:
-    size = 520
-    mark = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(mark)
-    d.ellipse((10, 10, size - 10, size - 10), outline=GOLD + (255,), width=16)
-    letters = icon_lettering()
-    inner = int(size * 0.58)
-    sc = min(inner / letters.width, inner / letters.height)
-    letters = letters.resize(
-        (max(1, int(letters.width * sc)), max(1, int(letters.height * sc))),
-        Image.Resampling.LANCZOS,
+def suitcase(base: Image.Image, x: float, y: float, scale: float = 1.0) -> None:
+    draw = ImageDraw.Draw(base)
+    s = scale
+    put_shadow(base, x + 28 * s, y + 78 * s, 30 * s, 10 * s)
+    draw.rounded_rectangle((x, y, x + 58 * s, y + 74 * s), radius=10, outline=INK, width=5, fill=(70, 96, 130))
+    draw.line((x + 14 * s, y - 20 * s, x + 44 * s, y - 20 * s), fill=INK, width=5)
+    draw.line((x + 14 * s, y - 20 * s, x + 14 * s, y), fill=INK, width=5)
+    draw.line((x + 44 * s, y - 20 * s, x + 44 * s, y), fill=INK, width=5)
+    draw.line((x + 10 * s, y + 28 * s, x + 48 * s, y + 28 * s), fill=(200, 210, 220), width=3)
+
+
+def airport(base: Image.Image) -> None:
+    draw = ImageDraw.Draw(base)
+    # terminal
+    put_shadow(base, W / 2, 1295, 420, 24)
+    draw.rounded_rectangle((90, 960, 990, 1290), radius=12, fill=(242, 245, 248), outline=INK, width=7)
+    draw.polygon([(70, 968), (540, 780), (1010, 968)], fill=(210, 220, 230), outline=INK)
+    draw.line([(70, 968), (540, 780), (1010, 968)], fill=INK, width=7)
+    # control tower
+    draw.rectangle((860, 700, 900, 960), fill=(200, 205, 212), outline=INK, width=4)
+    draw.ellipse((835, 650, 925, 720), fill=GOLD, outline=INK, width=4)
+    # glass doors
+    for i in range(3):
+        x = 230 + i * 200
+        draw.rounded_rectangle((x, 1060, x + 150, 1290), radius=6, outline=INK, width=5, fill=(150, 198, 222))
+        draw.line((x + 75, 1060, x + 75, 1290), fill=INK, width=3)
+    # plane
+    px, py = 200, 620
+    draw.ellipse((px, py, px + 190, py + 46), fill=INK)
+    draw.polygon([(px + 50, py + 12), (px + 20, py - 40), (px + 85, py + 12)], fill=INK)
+    draw.polygon([(px + 120, py + 18), (px + 175, py + 70), (px + 105, py + 28)], fill=INK)
+    f = ImageFont.truetype(FONT, 40)
+    t = "ΑΕΡΟΔΡΟΜΙΟ"
+    tw = draw.textlength(t, font=f)
+    draw.rounded_rectangle(((W - tw) / 2 - 24, 870, (W + tw) / 2 + 24, 940), radius=14, fill=WHITE, outline=INK, width=4)
+    draw.text(((W - tw) / 2, 882), t, font=f, fill=INK)
+
+
+def caption(base: Image.Image, text: str, y: int = 150, sub: str | None = None) -> None:
+    draw = ImageDraw.Draw(base)
+    f = ImageFont.truetype(FONT, 50)
+    tw = draw.textlength(text, font=f)
+    pad_x, pad_y = 34, 22
+    box = ((W - tw) / 2 - pad_x, y - pad_y, (W + tw) / 2 + pad_x, y + 58 + pad_y)
+    # soft shadow card
+    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle(
+        (box[0] + 4, box[1] + 6, box[2] + 4, box[3] + 6), radius=22, fill=(0, 0, 0, 40)
     )
-    mark.alpha_composite(letters, ((size - letters.width) // 2, (size - letters.height) // 2))
-    return mark
+    base.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(4)))
+    draw.rounded_rectangle(box, radius=22, fill=WHITE, outline=INK, width=4)
+    draw.text(((W - tw) / 2, y), text, font=f, fill=INK)
+    if sub:
+        fs = ImageFont.truetype(FONT_REG, 34)
+        sw = draw.textlength(sub, font=fs)
+        draw.text(((W - sw) / 2, box[3] + 18), sub, font=fs, fill=SOFT_INK)
+
+
+def road_layer(base: Image.Image, y0: int = 1280, scroll: float = 0.0) -> None:
+    draw = ImageDraw.Draw(base)
+    draw.rectangle((0, y0, W, H), fill=ROAD)
+    draw.rectangle((0, y0, W, y0 + 14), fill=GOLD)
+    for i in range(16):
+        x = (i * 120 - int(scroll) % 120)
+        draw.rounded_rectangle((x, y0 + 210, x + 64, y0 + 228), radius=4, fill=WHITE)
 
 
 BADGE = None
@@ -223,27 +349,40 @@ BADGE = None
 def brand_end(t: float, start: float) -> Image.Image:
     global BADGE
     if BADGE is None:
-        BADGE = badge()
+        size = 560
+        mark = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        d = ImageDraw.Draw(mark)
+        d.ellipse((12, 12, size - 12, size - 12), outline=GOLD + (255,), width=18)
+        letters = icon_lettering()
+        inner = int(size * 0.58)
+        sc = min(inner / letters.width, inner / letters.height)
+        letters = letters.resize(
+            (max(1, int(letters.width * sc)), max(1, int(letters.height * sc))),
+            Image.Resampling.LANCZOS,
+        )
+        mark.alpha_composite(letters, ((size - letters.width) // 2, (size - letters.height) // 2))
+        BADGE = mark
+
     img = Image.new("RGBA", (W, H), (8, 8, 8, 255))
-    draw = ImageDraw.Draw(img)
-    # soft gold glow
     yy, xx = np.mgrid[0:H, 0:W]
-    d = np.sqrt(((xx - W / 2) / 520.0) ** 2 + ((yy - 820) / 700.0) ** 2)
-    a = np.clip(1.0 - d, 0.0, 1.0) ** 2.2 * 70
+    dmap = np.sqrt(((xx - W / 2) / 500.0) ** 2 + ((yy - 780) / 680.0) ** 2)
+    a = np.clip(1.0 - dmap, 0.0, 1.0) ** 2.3 * 78
     glow = np.zeros((H, W, 4), dtype=np.uint8)
     glow[..., 0], glow[..., 1], glow[..., 2] = GOLD
     glow[..., 3] = a.astype(np.uint8)
     img.alpha_composite(Image.fromarray(glow, "RGBA"))
 
     since = max(t - start, 0.0)
-    k = ease(min(since / 0.6, 1.0))
-    mark = BADGE.resize((int(520 * (0.88 + 0.12 * k)), int(520 * (0.88 + 0.12 * k))), Image.Resampling.LANCZOS)
-    img.alpha_composite(mark, ((W - mark.width) // 2, 420))
+    k = ease(min(since / 0.55, 1.0))
+    size = int(560 * (0.90 + 0.10 * k))
+    mark = BADGE.resize((size, size), Image.Resampling.LANCZOS)
+    img.alpha_composite(mark, ((W - size) // 2, 380))
 
-    f_brand = ImageFont.truetype(FONT, 78)
+    draw = ImageDraw.Draw(img)
+    f_brand = ImageFont.truetype(FONT, 80)
     f_line = ImageFont.truetype(FONT_REG, 42)
     f_url = ImageFont.truetype(FONT_REG, 30)
-    fade = ease(min(max((since - 0.25) / 0.45, 0.0), 1.0))
+    fade = ease(min(max((since - 0.2) / 0.45, 0.0), 1.0))
     bw = draw.textlength("Taxi and Fly", font=f_brand)
     draw.text(((W - bw) / 2, 980), "Taxi and Fly", font=f_brand, fill=GOLD + (255,))
     lines = [
@@ -251,113 +390,106 @@ def brand_end(t: float, start: float) -> Image.Image:
         "Ελ. Βενιζέλος · Αθήνα",
         "Επαγγελματίες οδηγοί ταξί",
     ]
-    y = 1100
+    y = 1105
     for line in lines:
         tw = draw.textlength(line, font=f_line)
         draw.text(((W - tw) / 2, y), line, font=f_line, fill=WHITE + (int(245 * fade),))
-        y += 58
+        y += 56
     uw = draw.textlength("taxiapp2026.github.io/taxi-client-app", font=f_url)
-    draw.text(((W - uw) / 2, y + 30), "taxiapp2026.github.io/taxi-client-app", font=f_url, fill=(160, 160, 160, int(230 * fade)))
+    draw.text(
+        ((W - uw) / 2, y + 36),
+        "taxiapp2026.github.io/taxi-client-app",
+        font=f_url,
+        fill=(160, 160, 160, int(230 * fade)),
+    )
     return img
 
 
-def scene_home(t: float, local: float) -> Image.Image:
-    img = Image.new("RGBA", (W, H), SKY + (255,))
+def scene_home(local: float, dur: float) -> Image.Image:
+    img = sky_bg()
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1200, W, H), fill=GRASS)
-    house(draw, 200, 780)
-    # figure walks a little toward door then stops with phone
-    x = 720 + min(local, 1.0) * 20
-    stick(draw, x, 1280, scale=1.15)
-    suitcase(draw, x + 55, 1210)
-    if local > 0.8:
-        caption(draw, "Σπίτι")
+    # ground
+    draw.rectangle((0, 1260, W, H), fill=GRASS)
+    # soft horizon haze
+    for i in range(40):
+        a = int(18 * (1 - i / 40))
+        draw.line((0, 1260 - i, W, 1260 - i), fill=(255, 255, 255, a))
+    house(img, 170, 760)
+    # walk a few steps toward curb
+    k = ease(min(local / max(dur * 0.7, 0.1), 1.0))
+    x = lerp(700, 780, k)
+    walk = local * 1.4 if local < dur * 0.7 else 0.0
+    stick(img, x, 1370, scale=1.25, walk=walk)
+    suitcase(img, x + 62, 1295, scale=1.05)
+    caption(img, "Σπίτι", sub="Η διαδρομή ξεκινάει εδώ")
     return img
 
 
-def scene_call(t: float, local: float) -> Image.Image:
-    img = Image.new("RGBA", (W, H), ROOM + (255,))
+def scene_call(local: float, dur: float) -> Image.Image:
+    img = room_bg()
+    bob = math.sin(local * 5.5) * 10
+    phone(img, W / 2, 720, lit=True, bounce=bob)
+    stick(img, W / 2, 1520, scale=1.15)
+    # ringing dots
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1400, W, H), fill=(210, 205, 195))
-    # big phone in center
-    bob = math.sin(local * 6) * 8
-    phone(draw, W / 2, 780 + bob, lit=True)
-    # small figure below looking up
-    stick(draw, W / 2, 1500, scale=1.05)
-    pulse = 0.5 + 0.5 * math.sin(local * 10)
-    f = ImageFont.truetype(FONT, 48)
-    msg = "Κλήση Taxi and Fly"
-    tw = draw.textlength(msg, font=f)
-    draw.text(((W - tw) / 2, 1080), msg, font=f, fill=(int(40 + 80 * pulse),) * 2 + (40, 255))
-    caption(draw, "Πατάς. Κλείνεις.")
+    for i in range(3):
+        pulse = 0.4 + 0.6 * abs(math.sin(local * 7 + i))
+        r = 8 + 4 * pulse
+        x = W / 2 + 110 + i * 28
+        draw.ellipse((x - r, 640 - r + bob, x + r, 640 + r + bob), fill=mix_rgb(GOLD, (255, 255, 255), 1 - pulse) + (255,))
+    caption(img, "Πατάς Taxi and Fly", sub="Γρήγορα. Απλά.")
     return img
 
 
-def scene_pickup(t: float, local: float) -> Image.Image:
-    img = Image.new("RGBA", (W, H), SKY + (255,))
+def scene_pickup(local: float, dur: float) -> Image.Image:
+    img = sky_bg()
+    road_layer(img, 1280, scroll=local * 180)
+    k = ease(min(local / (dur * 0.55), 1.0))
+    car_x = lerp(-240, 520, k)
+    taxi_car(img, car_x, 1510, scale=1.25, wheel_spin=local * 3)
+    if local < dur * 0.72:
+        stick(img, 820, 1510, scale=1.2)
+        suitcase(img, 880, 1435, scale=1.0)
+    else:
+        # boarding: figure fades toward car
+        stick(img, lerp(820, 560, ease((local - dur * 0.72) / (dur * 0.28))), 1510, scale=1.05)
+    caption(img, "Έρχεται το ταξί", sub="Επαγγελματίας οδηγός")
+    return img
+
+
+def scene_drive(local: float, dur: float) -> Image.Image:
+    img = sky_bg()
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1250, W, H), fill=ROAD)
-    draw.rectangle((0, 1250, W, 1270), fill=GOLD)
-    # dashed road line
-    for i in range(12):
-        x = (i * 120 - int(local * 400) % 120)
-        draw.rectangle((x, 1550, x + 60, 1570), fill=WHITE)
-
-    car_x = -200 + ease(min(local / 0.55, 1.0)) * 740
-    taxi_car(draw, car_x, 1480, scale=1.2)
-    # figure waits then disappears into car
-    if local < 0.7:
-        stick(draw, 820, 1480, scale=1.1)
-        suitcase(draw, 875, 1410)
-    caption(draw, "Έρχεται το ταξί")
+    # rolling hills
+    offset = int(local * 220) % 900
+    draw.ellipse((-200 - offset, 980, 520 - offset, 1500), fill=GRASS)
+    draw.ellipse((500 - offset * 0.6, 1020, 1300 - offset * 0.6, 1520), fill=(136, 174, 120))
+    road_layer(img, 1240, scroll=local * 720)
+    bounce = math.sin(local * 16) * 5
+    taxi_car(img, 540, 1475 + bounce, scale=1.4, wheel_spin=local * 5)
+    # passenger silhouette in window
+    draw.ellipse((505, 1335 + bounce, 548, 1378 + bounce), fill=WHITE, outline=INK, width=4)
+    caption(img, "Προς αεροδρόμιο", sub="Αθήνα · Ελ. Βενιζέλος")
     return img
 
 
-def scene_drive(t: float, local: float) -> Image.Image:
-    img = Image.new("RGBA", (W, H), SKY + (255,))
+def scene_airport(local: float, dur: float) -> Image.Image:
+    img = sky_bg()
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1200, W, H), fill=ROAD)
-    # scrolling dashes
-    for i in range(14):
-        x = (i * 110 - int(local * 700) % 110)
-        draw.rectangle((x, 1520, x + 55, 1540), fill=WHITE)
-    # hills
-    draw.ellipse((-100, 900, 500, 1400), fill=GRASS)
-    draw.ellipse((600, 950, 1200, 1450), fill=(150, 180, 130))
-    bounce = math.sin(local * 18) * 6
-    taxi_car(draw, 540, 1450 + bounce, scale=1.35)
-    # tiny head in window hint
-    draw.ellipse((500, 1320 + bounce, 540, 1360 + bounce), outline=INK, width=5)
-    caption(draw, "Προς αεροδρόμιο")
+    draw.rectangle((0, 1320, W, H), fill=(186, 192, 198))
+    airport(img)
+    arrive = ease(min(local / (dur * 0.35), 1.0))
+    car_x = lerp(420, 260, arrive)
+    if local < dur * 0.75:
+        taxi_car(img, car_x, 1580, scale=1.1, wheel_spin=max(0, 1.2 - arrive) * local)
+    # figure exits and waves
+    exit_k = ease(max((local - dur * 0.28) / (dur * 0.55), 0.0))
+    fig_x = lerp(420, 640, exit_k)
+    wave = ease(max((local - dur * 0.4) / (dur * 0.4), 0.0))
+    stick(img, fig_x, 1580, scale=1.28, wave=wave, smile=local > dur * 0.35, walk=exit_k * 0.8 if exit_k < 0.95 else 0)
+    suitcase(img, fig_x + 68, 1505, scale=1.05)
+    caption(img, "Χαρούμενη άφιξη", sub="Στο αεροδρόμιο στην ώρα σου")
     return img
-
-
-def scene_airport(t: float, local: float) -> Image.Image:
-    img = Image.new("RGBA", (W, H), SKY + (255,))
-    draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1280, W, H), fill=(190, 195, 200))
-    airport(draw)
-    # car arrives left, figure hops out happy
-    car_x = 280 + (1 - ease(min(local / 0.4, 1.0))) * 200
-    if local < 0.85:
-        taxi_car(draw, car_x, 1550, scale=1.05)
-    fig_x = 560 + ease(max((local - 0.35) / 0.5, 0.0)) * 120
-    wave = ease(max((local - 0.45), 0.0))
-    stick(draw, fig_x, 1550, scale=1.2, wave=wave, smile=local > 0.4)
-    suitcase(draw, fig_x + 60, 1480)
-    caption(draw, "Χαρούμενη άφιξη!")
-    return img
-
-
-# timeline: (name, seconds, renderer)
-TIMELINE = [
-    ("home", 2.2, scene_home),
-    ("call", 2.4, scene_call),
-    ("pickup", 2.3, scene_pickup),
-    ("drive", 2.2, scene_drive),
-    ("airport", 2.6, scene_airport),
-    ("brand", 4.0, None),
-]
 
 
 async def speak(text: str, dst: Path) -> None:
@@ -385,14 +517,17 @@ def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None
     ff(
         "-i", str(bed), "-i", str(sting), "-i", str(vo),
         "-filter_complex",
-        "[0:a]volume=0.22,afade=t=in:st=0:d=0.6,aformat=sample_rates=44100:channel_layouts=stereo[m];"
-        "[1:a]volume=0.52,aformat=sample_rates=44100:channel_layouts=stereo[s];"
-        "[2:a]highpass=f=80,equalizer=f=180:t=q:w=1:g=1.5,equalizer=f=2500:t=q:w=1:g=1.1,"
-        "acompressor=threshold=-18dB:ratio=1.7:attack=12:release=120,"
-        "aformat=sample_rates=44100:channel_layouts=stereo,volume=1.15[v];"
+        "[0:a]volume=0.20,afade=t=in:st=0:d=0.7,"
+        f"afade=t=out:st={max(total - 1.6, 0.5):.2f}:d=1.4,"
+        "aformat=sample_rates=44100:channel_layouts=stereo[m];"
+        "[1:a]volume=0.50,aformat=sample_rates=44100:channel_layouts=stereo[s];"
+        "[2:a]highpass=f=80,equalizer=f=180:t=q:w=1:g=1.4,equalizer=f=2500:t=q:w=1:g=1.0,"
+        "acompressor=threshold=-18dB:ratio=1.6:attack=12:release=120,"
+        "aformat=sample_rates=44100:channel_layouts=stereo,volume=1.12,"
+        f"apad=pad_dur={TAIL:.2f}[v];"
         "[m][s][v]amix=inputs=3:duration=longest:dropout_transition=0:normalize=0,"
-        "loudnorm=I=-15:TP=-1.2:LRA=11,"
-        f"alimiter=limit=0.95,atrim=0:{total:.3f},asetpts=PTS-STARTPTS[a]",
+        "loudnorm=I=-14:TP=-1.0:LRA=11,"
+        f"alimiter=limit=0.96,atrim=0:{total:.3f},asetpts=PTS-STARTPTS[a]",
         "-map", "[a]", "-t", f"{total:.3f}",
         "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "192k", str(dst),
     )
@@ -400,17 +535,40 @@ def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None
 
 async def main() -> int:
     BUILD.mkdir(parents=True, exist_ok=True)
-    total = sum(s for _, s, _ in TIMELINE)
-    print("total", total, "s")
+
+    # 1) Voice first — timeline follows audio so nothing is clipped.
+    vo_mp3 = BUILD / "vo.mp3"
+    await speak(SPOKEN, vo_mp3)
+    vo_wav = BUILD / "vo.wav"
+    ff("-i", str(vo_mp3), "-ac", "1", "-ar", "44100", str(vo_wav))
+    vo_len = duration(vo_wav)
+    total = vo_len + TAIL
+    print(f"VO {vo_len:.2f}s → video {total:.2f}s")
+
+    # Story beats as fractions of the pre-brand section.
+    # Brand needs enough time for the closing lines (~last 45% of VO).
+    brand_dur = max(6.2, total * 0.38)
+    story_dur = total - brand_dur
+    beats = [
+        ("home", 0.18, scene_home),
+        ("call", 0.18, scene_call),
+        ("pickup", 0.20, scene_pickup),
+        ("drive", 0.18, scene_drive),
+        ("airport", 0.26, scene_airport),
+    ]
+    timeline: list[tuple[str, float, object | None]] = []
+    for name, frac, fn in beats:
+        timeline.append((name, story_dur * frac, fn))
+    timeline.append(("brand", brand_dur, None))
 
     frames_dir = BUILD / "frames"
     shutil.rmtree(frames_dir, ignore_errors=True)
     frames_dir.mkdir(parents=True)
 
-    brand_start = sum(s for _, s, fn in TIMELINE if fn is not None)
+    brand_start = story_dur
     t = 0.0
     idx = 0
-    for name, seconds, fn in TIMELINE:
+    for name, seconds, fn in timeline:
         n = int(round(seconds * FPS))
         for i in range(n):
             local = i / FPS
@@ -418,54 +576,59 @@ async def main() -> int:
             if fn is None:
                 img = brand_end(abs_t, brand_start)
             else:
-                img = fn(abs_t, local)
+                img = fn(local, seconds)  # type: ignore[operator]
             img.convert("RGB").save(frames_dir / f"{idx:05d}.png")
             idx += 1
         t += seconds
-        print("scene", name, "done")
+        print("scene", name, f"{seconds:.2f}s")
+
+    # Exact frame count to match audio length
+    need = int(round(total * FPS))
+    while idx < need:
+        img = brand_end(idx / FPS, brand_start)
+        img.convert("RGB").save(frames_dir / f"{idx:05d}.png")
+        idx += 1
 
     silent = BUILD / "silent.mp4"
     ff(
         "-framerate", str(FPS), "-i", str(frames_dir / "%05d.png"),
         "-vf", "format=yuv420p,setsar=1",
         "-fps_mode", "cfr", "-r", str(FPS),
-        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+        "-frames:v", str(need),
+        "-c:v", "libx264", "-preset", "medium", "-crf", "17",
         "-profile:v", "high", "-level", "4.0",
         "-g", str(FPS * 2), "-keyint_min", str(FPS), "-sc_threshold", "0",
         "-an", str(silent),
     )
 
-    vo_mp3 = BUILD / "vo.mp3"
-    await speak(SPOKEN, vo_mp3)
-    vo_wav = BUILD / "vo.wav"
-    ff("-i", str(vo_mp3), "-ac", "1", "-ar", "44100", str(vo_wav))
-
     vlen = duration(silent)
-    # If VO is longer, pad video end a touch by freezing last frames via audio trim to video
     bed = BUILD / "bed.wav"
     pretty_music(vlen + 0.5, bed)
     sting = BUILD / "sting.wav"
-    logo_sting(vlen + 0.5, brand_start + 0.15, sting)
+    logo_sting(vlen + 0.5, brand_start + 0.18, sting)
 
     audio = BUILD / "mix.m4a"
-    mix_audio(vo_wav, bed, sting, vlen + 0.05, audio)
+    mix_audio(vo_wav, bed, sting, vlen, audio)
 
     tmp = BUILD / "tmp.mp4"
     mix(silent, audio, tmp)
     ff(
         "-i", str(tmp),
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.0",
-        "-preset", "medium", "-crf", "18",
+        "-preset", "medium", "-crf", "17",
         "-fps_mode", "cfr", "-r", str(FPS),
         "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "192k",
         "-movflags", "+faststart", str(OUT),
     )
+
     ART.mkdir(parents=True, exist_ok=True)
-    (ART / "taxi_and_fly_stick_cartoon.mp4").write_bytes(OUT.read_bytes())
-    (ART / "downloads").mkdir(exist_ok=True)
-    (ART / "downloads" / "stick-cartoon-taxi-and-fly.mp4").write_bytes(OUT.read_bytes())
+    (ART / "downloads").mkdir(parents=True, exist_ok=True)
+    data = OUT.read_bytes()
+    (ART / "taxi_and_fly_stick_cartoon.mp4").write_bytes(data)
+    (ART / "downloads" / "stick-cartoon-taxi-and-fly.mp4").write_bytes(data)
     shutil.rmtree(frames_dir, ignore_errors=True)
-    print("Wrote", OUT, round(duration(OUT), 2), "s")
+
+    print("Wrote", OUT, "video", round(duration(OUT), 2), "s", "vo", round(vo_len, 2), "s")
     return 0
 
 
