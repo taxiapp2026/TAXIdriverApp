@@ -21,7 +21,6 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build" / "stick"
 ART = Path("/opt/cursor/artifacts")
-OUT = ROOT / "taxi-and-fly-stick-cartoon.mp4"
 
 sys.path.insert(0, str(ROOT))
 from add_pretty_music import pretty_music  # noqa: E402
@@ -43,14 +42,61 @@ GRASS = (148, 186, 132)
 SHADOW = (0, 0, 0, 55)
 VOICE = "el-GR-NestorasNeural"
 RATE = "-8%"
-TAIL = 1.15  # silence after last spoken word
+TAIL = 1.25  # silence after last spoken word
 
-SPOKEN = (
-    "Είσαι σπίτι. Πατάς Taxi and Fly. "
-    "Έρχεται το ταξί. Σε αφήνει χαρούμενο στο αεροδρόμιο. "
-    "Taxi and Fly. Από και προς το αεροδρόμιο Ελ Βενιζέλος, Αθήνα. "
-    "Εφαρμογή με επαγγελματίες οδηγούς ταξί."
-)
+# Two clear spots: to airport, and the opposite (from airport).
+VARIANTS = {
+    "to-airport": {
+        "out": ROOT / "taxi-and-fly-stick-pros-aerodromio.mp4",
+        "art": "taxi_and_fly_stick_pros_aerodromio.mp4",
+        "download": "stick-pros-aerodromio.mp4",
+        "spoken": (
+            "Όπου κι αν βρίσκεσαι — αν θες να πας στο αεροδρόμιο, "
+            "κλείσε Taxi and Fly. "
+            "Επαγγελματίες οδηγοί ταξί έρχονται στην ώρα τους "
+            "και σε πάνε με ασφάλεια στο αεροδρόμιο. "
+            "Taxi and Fly. Από και προς Ελ Βενιζέλος, Αθήνα."
+        ),
+        "caps": [
+            ("Όπου κι αν βρίσκεσαι", "Θέλεις να πας αεροδρόμιο;"),
+            ("Κλείσε Taxi and Fly", "Απλά και γρήγορα"),
+            ("Έρχονται στην ώρα τους", "Επαγγελματίες οδηγοί ταξί"),
+            ("Με ασφάλεια", "Προς το αεροδρόμιο"),
+            ("Στο αεροδρόμιο", "Έφτασες ήρεμα και στην ώρα σου"),
+        ],
+        "brand_lines": [
+            "Από και προς αεροδρόμιο",
+            "Ελ. Βενιζέλος · Αθήνα",
+            "Επαγγελματίες οδηγοί ταξί",
+        ],
+        "direction": "to",
+    },
+    "from-airport": {
+        "out": ROOT / "taxi-and-fly-stick-apo-aerodromio.mp4",
+        "art": "taxi_and_fly_stick_apo_aerodromio.mp4",
+        "download": "stick-apo-aerodromio.mp4",
+        "spoken": (
+            "Μόλις προσγειωθείς — αν θες να φύγεις από το αεροδρόμιο, "
+            "κλείσε Taxi and Fly. "
+            "Επαγγελματίες οδηγοί ταξί σε περιμένουν στην ώρα τους "
+            "και σε πάνε με ασφάλεια στον προορισμό σου. "
+            "Taxi and Fly. Από και προς Ελ Βενιζέλος, Αθήνα."
+        ),
+        "caps": [
+            ("Μόλις προσγειωθείς", "Θέλεις να φύγεις από το αεροδρόμιο;"),
+            ("Κλείσε Taxi and Fly", "Απλά και γρήγορα"),
+            ("Σε περιμένουν στην ώρα τους", "Επαγγελματίες οδηγοί ταξί"),
+            ("Με ασφάλεια", "Προς τον προορισμό σου"),
+            ("Στο σπίτι σου", "Έφτασες ήρεμα και στην ώρα σου"),
+        ],
+        "brand_lines": [
+            "Από και προς αεροδρόμιο",
+            "Ελ. Βενιζέλος · Αθήνα",
+            "Επαγγελματίες οδηγοί ταξί",
+        ],
+        "direction": "from",
+    },
+}
 
 
 def ease(k: float) -> float:
@@ -314,24 +360,36 @@ def airport(base: Image.Image) -> None:
     draw.text(((W - tw) / 2, 882), t, font=f, fill=INK)
 
 
-def caption(base: Image.Image, text: str, y: int = 150, sub: str | None = None) -> None:
+def fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_w: float) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Shrink title a bit if a long Greek line would overflow."""
+    size = getattr(font, "size", 50)
+    path = FONT
+    for s in range(int(size), 34, -2):
+        f = ImageFont.truetype(path, s)
+        if draw.textlength(text, font=f) <= max_w:
+            return f
+    return ImageFont.truetype(path, 34)
+
+
+def caption(base: Image.Image, text: str, y: int = 140, sub: str | None = None) -> None:
     draw = ImageDraw.Draw(base)
-    f = ImageFont.truetype(FONT, 50)
+    f = fit_text(draw, text, ImageFont.truetype(FONT, 48), 920)
     tw = draw.textlength(text, font=f)
-    pad_x, pad_y = 34, 22
-    box = ((W - tw) / 2 - pad_x, y - pad_y, (W + tw) / 2 + pad_x, y + 58 + pad_y)
-    # soft shadow card
+    pad_x, pad_y = 32, 20
+    box_h = 56 + pad_y
+    box = ((W - tw) / 2 - pad_x, y - pad_y, (W + tw) / 2 + pad_x, y + box_h)
     shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).rounded_rectangle(
         (box[0] + 4, box[1] + 6, box[2] + 4, box[3] + 6), radius=22, fill=(0, 0, 0, 40)
     )
     base.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(4)))
     draw.rounded_rectangle(box, radius=22, fill=WHITE, outline=INK, width=4)
-    draw.text(((W - tw) / 2, y), text, font=f, fill=INK)
+    th = f.size if hasattr(f, "size") else 48
+    draw.text(((W - tw) / 2, y + (48 - th) / 2), text, font=f, fill=INK)
     if sub:
-        fs = ImageFont.truetype(FONT_REG, 34)
+        fs = fit_text(draw, sub, ImageFont.truetype(FONT_REG, 34), 960)
         sw = draw.textlength(sub, font=fs)
-        draw.text(((W - sw) / 2, box[3] + 18), sub, font=fs, fill=SOFT_INK)
+        draw.text(((W - sw) / 2, box[3] + 16), sub, font=fs, fill=SOFT_INK)
 
 
 def road_layer(base: Image.Image, y0: int = 1280, scroll: float = 0.0) -> None:
@@ -346,7 +404,7 @@ def road_layer(base: Image.Image, y0: int = 1280, scroll: float = 0.0) -> None:
 BADGE = None
 
 
-def brand_end(t: float, start: float) -> Image.Image:
+def brand_end(t: float, start: float, lines: list[str]) -> Image.Image:
     global BADGE
     if BADGE is None:
         size = 560
@@ -385,11 +443,6 @@ def brand_end(t: float, start: float) -> Image.Image:
     fade = ease(min(max((since - 0.2) / 0.45, 0.0), 1.0))
     bw = draw.textlength("Taxi and Fly", font=f_brand)
     draw.text(((W - bw) / 2, 980), "Taxi and Fly", font=f_brand, fill=GOLD + (255,))
-    lines = [
-        "Από και προς αεροδρόμιο",
-        "Ελ. Βενιζέλος · Αθήνα",
-        "Επαγγελματίες οδηγοί ταξί",
-    ]
     y = 1105
     for line in lines:
         tw = draw.textlength(line, font=f_line)
@@ -405,44 +458,61 @@ def brand_end(t: float, start: float) -> Image.Image:
     return img
 
 
-def scene_home(local: float, dur: float) -> Image.Image:
-    img = sky_bg()
-    draw = ImageDraw.Draw(img)
-    # ground
-    draw.rectangle((0, 1260, W, H), fill=GRASS)
-    # soft horizon haze
-    for i in range(40):
-        a = int(18 * (1 - i / 40))
-        draw.line((0, 1260 - i, W, 1260 - i), fill=(255, 255, 255, a))
-    house(img, 170, 760)
-    # walk a few steps toward curb
-    k = ease(min(local / max(dur * 0.7, 0.1), 1.0))
-    x = lerp(700, 780, k)
-    walk = local * 1.4 if local < dur * 0.7 else 0.0
-    stick(img, x, 1370, scale=1.25, walk=walk)
-    suitcase(img, x + 62, 1295, scale=1.05)
-    caption(img, "Σπίτι", sub="Η διαδρομή ξεκινάει εδώ")
+def scene_start(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
+    title, sub = copy["caps"][0]
+    if direction == "to":
+        img = sky_bg()
+        draw = ImageDraw.Draw(img)
+        draw.rectangle((0, 1260, W, H), fill=GRASS)
+        for i in range(40):
+            a = int(18 * (1 - i / 40))
+            draw.line((0, 1260 - i, W, 1260 - i), fill=(255, 255, 255, a))
+        house(img, 170, 760)
+        k = ease(min(local / max(dur * 0.7, 0.1), 1.0))
+        x = lerp(700, 780, k)
+        walk = local * 1.4 if local < dur * 0.7 else 0.0
+        stick(img, x, 1370, scale=1.25, walk=walk)
+        suitcase(img, x + 62, 1295, scale=1.05)
+    else:
+        img = sky_bg()
+        draw = ImageDraw.Draw(img)
+        draw.rectangle((0, 1320, W, H), fill=(186, 192, 198))
+        airport(img)
+        k = ease(min(local / max(dur * 0.7, 0.1), 1.0))
+        x = lerp(520, 640, k)
+        stick(img, x, 1560, scale=1.25, walk=local * 1.2 if local < dur * 0.7 else 0.0, smile=True)
+        suitcase(img, x + 62, 1485, scale=1.05)
+    caption(img, title, sub=sub)
     return img
 
 
-def scene_call(local: float, dur: float) -> Image.Image:
+def scene_call(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
+    title, sub = copy["caps"][1]
     img = room_bg()
     bob = math.sin(local * 5.5) * 10
     phone(img, W / 2, 720, lit=True, bounce=bob)
     stick(img, W / 2, 1520, scale=1.15)
-    # ringing dots
     draw = ImageDraw.Draw(img)
     for i in range(3):
         pulse = 0.4 + 0.6 * abs(math.sin(local * 7 + i))
         r = 8 + 4 * pulse
         x = W / 2 + 110 + i * 28
-        draw.ellipse((x - r, 640 - r + bob, x + r, 640 + r + bob), fill=mix_rgb(GOLD, (255, 255, 255), 1 - pulse) + (255,))
-    caption(img, "Πατάς Taxi and Fly", sub="Γρήγορα. Απλά.")
+        draw.ellipse(
+            (x - r, 640 - r + bob, x + r, 640 + r + bob),
+            fill=mix_rgb(GOLD, (255, 255, 255), 1 - pulse) + (255,),
+        )
+    caption(img, title, sub=sub)
     return img
 
 
-def scene_pickup(local: float, dur: float) -> Image.Image:
+def scene_pickup(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
+    title, sub = copy["caps"][2]
     img = sky_bg()
+    if direction == "from":
+        draw = ImageDraw.Draw(img)
+        draw.rectangle((0, 1280, W, 1320), fill=(186, 192, 198))
+        # small terminal cue in background
+        draw.rounded_rectangle((80, 900, 420, 1180), radius=10, fill=(242, 245, 248), outline=INK, width=5)
     road_layer(img, 1280, scroll=local * 180)
     k = ease(min(local / (dur * 0.55), 1.0))
     car_x = lerp(-240, 520, k)
@@ -451,44 +521,57 @@ def scene_pickup(local: float, dur: float) -> Image.Image:
         stick(img, 820, 1510, scale=1.2)
         suitcase(img, 880, 1435, scale=1.0)
     else:
-        # boarding: figure fades toward car
         stick(img, lerp(820, 560, ease((local - dur * 0.72) / (dur * 0.28))), 1510, scale=1.05)
-    caption(img, "Έρχεται το ταξί", sub="Επαγγελματίας οδηγός")
+    caption(img, title, sub=sub)
     return img
 
 
-def scene_drive(local: float, dur: float) -> Image.Image:
+def scene_drive(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
+    title, sub = copy["caps"][3]
     img = sky_bg()
     draw = ImageDraw.Draw(img)
-    # rolling hills
     offset = int(local * 220) % 900
     draw.ellipse((-200 - offset, 980, 520 - offset, 1500), fill=GRASS)
     draw.ellipse((500 - offset * 0.6, 1020, 1300 - offset * 0.6, 1520), fill=(136, 174, 120))
     road_layer(img, 1240, scroll=local * 720)
     bounce = math.sin(local * 16) * 5
     taxi_car(img, 540, 1475 + bounce, scale=1.4, wheel_spin=local * 5)
-    # passenger silhouette in window
     draw.ellipse((505, 1335 + bounce, 548, 1378 + bounce), fill=WHITE, outline=INK, width=4)
-    caption(img, "Προς αεροδρόμιο", sub="Αθήνα · Ελ. Βενιζέλος")
+    caption(img, title, sub=sub)
     return img
 
 
-def scene_airport(local: float, dur: float) -> Image.Image:
+def scene_arrive(local: float, dur: float, copy: dict, direction: str) -> Image.Image:
+    title, sub = copy["caps"][4]
     img = sky_bg()
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1320, W, H), fill=(186, 192, 198))
-    airport(img)
+    if direction == "to":
+        draw.rectangle((0, 1320, W, H), fill=(186, 192, 198))
+        airport(img)
+        ground_y = 1580
+    else:
+        draw.rectangle((0, 1260, W, H), fill=GRASS)
+        house(img, 170, 760)
+        ground_y = 1370
     arrive = ease(min(local / (dur * 0.35), 1.0))
     car_x = lerp(420, 260, arrive)
     if local < dur * 0.75:
-        taxi_car(img, car_x, 1580, scale=1.1, wheel_spin=max(0, 1.2 - arrive) * local)
-    # figure exits and waves
+        taxi_car(img, car_x, ground_y if direction == "to" else 1510, scale=1.1, wheel_spin=max(0, 1.2 - arrive) * local)
     exit_k = ease(max((local - dur * 0.28) / (dur * 0.55), 0.0))
     fig_x = lerp(420, 640, exit_k)
     wave = ease(max((local - dur * 0.4) / (dur * 0.4), 0.0))
-    stick(img, fig_x, 1580, scale=1.28, wave=wave, smile=local > dur * 0.35, walk=exit_k * 0.8 if exit_k < 0.95 else 0)
-    suitcase(img, fig_x + 68, 1505, scale=1.05)
-    caption(img, "Χαρούμενη άφιξη", sub="Στο αεροδρόμιο στην ώρα σου")
+    fy = ground_y if direction == "to" else 1370
+    stick(
+        img,
+        fig_x,
+        fy,
+        scale=1.28,
+        wave=wave,
+        smile=local > dur * 0.35,
+        walk=exit_k * 0.8 if exit_k < 0.95 else 0,
+    )
+    suitcase(img, fig_x + 68, fy - 75, scale=1.05)
+    caption(img, title, sub=sub)
     return img
 
 
@@ -533,63 +616,63 @@ def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None
     )
 
 
-async def main() -> int:
-    BUILD.mkdir(parents=True, exist_ok=True)
+async def build_one(slug: str, copy: dict) -> Path:
+    work = BUILD / slug
+    work.mkdir(parents=True, exist_ok=True)
+    direction = copy["direction"]
+    out: Path = copy["out"]
 
-    # 1) Voice first — timeline follows audio so nothing is clipped.
-    vo_mp3 = BUILD / "vo.mp3"
-    await speak(SPOKEN, vo_mp3)
-    vo_wav = BUILD / "vo.wav"
+    vo_mp3 = work / "vo.mp3"
+    await speak(copy["spoken"], vo_mp3)
+    vo_wav = work / "vo.wav"
     ff("-i", str(vo_mp3), "-ac", "1", "-ar", "44100", str(vo_wav))
     vo_len = duration(vo_wav)
     total = vo_len + TAIL
-    print(f"VO {vo_len:.2f}s → video {total:.2f}s")
+    print(f"[{slug}] VO {vo_len:.2f}s → video {total:.2f}s")
 
-    # Story beats as fractions of the pre-brand section.
-    # Brand needs enough time for the closing lines (~last 45% of VO).
-    brand_dur = max(6.2, total * 0.38)
+    # Longer brand hold so the closing lines are never clipped.
+    brand_dur = max(7.0, total * 0.40)
     story_dur = total - brand_dur
     beats = [
-        ("home", 0.18, scene_home),
+        ("start", 0.18, scene_start),
         ("call", 0.18, scene_call),
         ("pickup", 0.20, scene_pickup),
         ("drive", 0.18, scene_drive),
-        ("airport", 0.26, scene_airport),
+        ("arrive", 0.26, scene_arrive),
     ]
-    timeline: list[tuple[str, float, object | None]] = []
-    for name, frac, fn in beats:
-        timeline.append((name, story_dur * frac, fn))
-    timeline.append(("brand", brand_dur, None))
 
-    frames_dir = BUILD / "frames"
+    frames_dir = work / "frames"
     shutil.rmtree(frames_dir, ignore_errors=True)
     frames_dir.mkdir(parents=True)
 
     brand_start = story_dur
     t = 0.0
     idx = 0
-    for name, seconds, fn in timeline:
+    for name, frac, fn in beats:
+        seconds = story_dur * frac
         n = int(round(seconds * FPS))
         for i in range(n):
             local = i / FPS
-            abs_t = t + local
-            if fn is None:
-                img = brand_end(abs_t, brand_start)
-            else:
-                img = fn(local, seconds)  # type: ignore[operator]
+            img = fn(local, seconds, copy, direction)
             img.convert("RGB").save(frames_dir / f"{idx:05d}.png")
             idx += 1
         t += seconds
-        print("scene", name, f"{seconds:.2f}s")
+        print(f"[{slug}] scene {name} {seconds:.2f}s")
 
-    # Exact frame count to match audio length
     need = int(round(total * FPS))
     while idx < need:
-        img = brand_end(idx / FPS, brand_start)
+        img = brand_end(idx / FPS, brand_start, copy["brand_lines"])
         img.convert("RGB").save(frames_dir / f"{idx:05d}.png")
         idx += 1
+    # Also fill brand portion if beats undershot due to rounding
+    brand_frames_needed = need - int(round(story_dur * FPS))
+    # rewrite brand span cleanly
+    brand_from = max(0, need - max(brand_frames_needed, int(round(brand_dur * FPS))))
+    for i in range(brand_from, need):
+        img = brand_end(i / FPS, brand_start, copy["brand_lines"])
+        img.convert("RGB").save(frames_dir / f"{i:05d}.png")
 
-    silent = BUILD / "silent.mp4"
+    silent = work / "silent.mp4"
     ff(
         "-framerate", str(FPS), "-i", str(frames_dir / "%05d.png"),
         "-vf", "format=yuv420p,setsar=1",
@@ -602,15 +685,14 @@ async def main() -> int:
     )
 
     vlen = duration(silent)
-    bed = BUILD / "bed.wav"
+    bed = work / "bed.wav"
     pretty_music(vlen + 0.5, bed)
-    sting = BUILD / "sting.wav"
+    sting = work / "sting.wav"
     logo_sting(vlen + 0.5, brand_start + 0.18, sting)
-
-    audio = BUILD / "mix.m4a"
+    audio = work / "mix.m4a"
     mix_audio(vo_wav, bed, sting, vlen, audio)
 
-    tmp = BUILD / "tmp.mp4"
+    tmp = work / "tmp.mp4"
     mix(silent, audio, tmp)
     ff(
         "-i", str(tmp),
@@ -618,17 +700,35 @@ async def main() -> int:
         "-preset", "medium", "-crf", "17",
         "-fps_mode", "cfr", "-r", str(FPS),
         "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "192k",
-        "-movflags", "+faststart", str(OUT),
+        "-movflags", "+faststart", str(out),
     )
 
     ART.mkdir(parents=True, exist_ok=True)
     (ART / "downloads").mkdir(parents=True, exist_ok=True)
-    data = OUT.read_bytes()
-    (ART / "taxi_and_fly_stick_cartoon.mp4").write_bytes(data)
-    (ART / "downloads" / "stick-cartoon-taxi-and-fly.mp4").write_bytes(data)
-    shutil.rmtree(frames_dir, ignore_errors=True)
+    data = out.read_bytes()
+    (ART / copy["art"]).write_bytes(data)
+    (ART / "downloads" / copy["download"]).write_bytes(data)
+    # Keep legacy filename pointing at the to-airport spot.
+    if slug == "to-airport":
+        legacy = ROOT / "taxi-and-fly-stick-cartoon.mp4"
+        legacy.write_bytes(data)
+        (ART / "taxi_and_fly_stick_cartoon.mp4").write_bytes(data)
+        (ART / "downloads" / "stick-cartoon-taxi-and-fly.mp4").write_bytes(data)
 
-    print("Wrote", OUT, "video", round(duration(OUT), 2), "s", "vo", round(vo_len, 2), "s")
+    shutil.rmtree(frames_dir, ignore_errors=True)
+    print("Wrote", out, "video", round(duration(out), 2), "s", "vo", round(vo_len, 2), "s")
+    return out
+
+
+async def main(argv: list[str] | None = None) -> int:
+    BUILD.mkdir(parents=True, exist_ok=True)
+    wanted = set(sys.argv[1:] if argv is None else argv)
+    items = [(k, v) for k, v in VARIANTS.items() if not wanted or k in wanted]
+    if not items:
+        print("Known:", ", ".join(VARIANTS))
+        return 1
+    for slug, copy in items:
+        await build_one(slug, copy)
     return 0
 
 
