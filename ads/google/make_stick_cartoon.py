@@ -61,29 +61,29 @@ VARIANTS = {
             ("drive", "Σε πάει στο ραντεβού σου"),
         ],
     },
-    # 2) Just landed → call immediately → destination
+    # 2) Arrive Athens (El. Venizelos) → your destination
     "prosgeiosi": {
         "out": ROOT / "taxi-and-fly-stick-prosgeiosi.mp4",
         "art": "taxi_and_fly_stick_prosgeiosi.mp4",
         "download": "stick-prosgeiosi.mp4",
-        "brand_lines": ["Μόλις προσγειωθείς", "Κατευθείαν στον προορισμό σου"],
+        "brand_lines": ["Ελ. Βενιζέλος · Αθήνα", "Στον προορισμό σου"],
         "beats": [
-            ("start_airport", "Μόλις προσγειωθείς"),
-            ("call", "Καλείς κατευθείαν Taxi and Fly"),
-            ("pickup", "Έρχεται το ταξί"),
+            ("start_airport", "Έρχεσαι Αθήνα στο Ελ Βενιζέλος"),
+            ("call", "Θες να πας στον προορισμό σου"),
+            ("pickup", "Κλείσε Taxi and Fly"),
             ("drive", "Σε πάει στον προορισμό σου"),
         ],
     },
-    # 3) Athens → airport
+    # 3) In Athens → airport
     "athina-aerodromio": {
         "out": ROOT / "taxi-and-fly-stick-athina-aerodromio.mp4",
         "art": "taxi_and_fly_stick_athina_aerodromio.mp4",
         "download": "stick-athina-aerodromio.mp4",
         "brand_lines": ["Αθήνα προς αεροδρόμιο", "Ελ. Βενιζέλος"],
         "beats": [
-            ("start_city", "Από την Αθήνα"),
-            ("call", "Κλείσε Taxi and Fly"),
-            ("pickup", "Έρχεται το ταξί"),
+            ("start_city", "Είσαι στην Αθήνα"),
+            ("call", "Θες να πας στο αεροδρόμιο"),
+            ("pickup", "Κλείσε Taxi and Fly"),
             ("drive", "Σε πάει στο αεροδρόμιο"),
         ],
     },
