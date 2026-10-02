@@ -62,7 +62,7 @@ VARIANTS = {
         "out": ROOT / "taxi-and-fly-stick-rantevou.mp4",
         "art": "taxi_and_fly_stick_rantevou.mp4",
         "download": "stick-rantevou.mp4",
-        "brand_lines": ["Όπου κι αν πας", "Επαγγελματίες οδηγοί ταξί"],
+        "brand_lines": ["Από και προς το αεροδρόμιο"],
         "beats": [
             ("start_city", "Όπου κι αν βρίσκεσαι"),
             ("call", "Κλείσε Taxi and Fly"),
@@ -78,7 +78,7 @@ VARIANTS = {
         "out": ROOT / "taxi-and-fly-stick-prosgeiosi.mp4",
         "art": "taxi_and_fly_stick_prosgeiosi.mp4",
         "download": "stick-prosgeiosi.mp4",
-        "brand_lines": ["Ελ. Βενιζέλος · Αθήνα", "Στον προορισμό σου"],
+        "brand_lines": ["Από και προς το αεροδρόμιο"],
         "beats": [
             ("start_airport", "Έρχεσαι Αθήνα στο Ελ Βενιζέλος"),
             ("call", "Θες να πας στον προορισμό σου"),
@@ -95,7 +95,7 @@ VARIANTS = {
         "out": ROOT / "taxi-and-fly-stick-athina-aerodromio.mp4",
         "art": "taxi_and_fly_stick_athina_aerodromio.mp4",
         "download": "stick-athina-aerodromio.mp4",
-        "brand_lines": ["Αθήνα προς αεροδρόμιο", "Ελ. Βενιζέλος"],
+        "brand_lines": ["Από και προς το αεροδρόμιο"],
         "beats": [
             ("start_city", "Είσαι στην Αθήνα"),
             ("call", "Θες να πας στο αεροδρόμιο"),
@@ -672,7 +672,7 @@ async def build_one(slug: str, copy: dict) -> Path:
 
     brand_mp3 = work / "brand.mp3"
     brand_wav = work / "brand.wav"
-    await speak("Taxi and Fly.", brand_mp3)
+    await speak("Taxi and Fly. Από και προς το αεροδρόμιο.", brand_mp3)
     ff("-i", str(brand_mp3), "-ac", "1", "-ar", "44100", str(brand_wav))
     brand_pad = work / "brand_pad.wav"
     ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{TAIL:.3f}", str(brand_pad))
