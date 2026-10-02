@@ -138,10 +138,13 @@ def sky_bg() -> Image.Image:
                 (cx + ox * s - r * s, cy + oy * s - r * s, cx + ox * s + r * s, cy + oy * s + r * s),
                 fill=CLOUD + (255,),
             )
-    # soft rolling hills behind ground scenes
-    draw.ellipse((-200, 1100, 700, 1700), fill=HILL + (255,))
-    draw.ellipse((400, 1150, 1300, 1750), fill=HILL2 + (255,))
     return img
+
+
+def peppa_hills(base: Image.Image) -> None:
+    draw = ImageDraw.Draw(base)
+    draw.ellipse((-220, 1080, 720, 1680), fill=HILL + (255,))
+    draw.ellipse((380, 1120, 1320, 1720), fill=HILL2 + (255,))
 
 
 def room_bg() -> Image.Image:
@@ -494,11 +497,9 @@ def brand_end(t: float, start: float, lines: list[str]) -> Image.Image:
 
 def scene_start_city(local: float, dur: float, line: str) -> Image.Image:
     img = sky_bg()
+    peppa_hills(img)
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1260, W, H), fill=GRASS)
-    for i in range(40):
-        a = int(18 * (1 - i / 40))
-        draw.line((0, 1260 - i, W, 1260 - i), fill=(255, 255, 255, a))
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
     house(img, 170, 760)
     k = ease(min(local / max(dur * 0.75, 0.1), 1.0))
     x = lerp(700, 780, k)
@@ -543,8 +544,9 @@ def scene_call(local: float, dur: float, line: str) -> Image.Image:
 def scene_pickup_city(local: float, dur: float, line: str) -> Image.Image:
     """Taxi arrives at the house — grass yard, no highway."""
     img = sky_bg()
+    peppa_hills(img)
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1260, W, H), fill=GRASS)
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
     # little flowers
     for fx, fy, col in ((120, 1420, (255, 120, 160)), (260, 1480, (255, 220, 80)), (940, 1450, (255, 140, 180))):
         draw.ellipse((fx, fy, fx + 28, fy + 28), fill=col, outline=INK, width=3)
