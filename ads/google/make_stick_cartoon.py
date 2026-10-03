@@ -26,7 +26,7 @@ sys.path.insert(0, str(ROOT))
 from add_pretty_music import pretty_music  # noqa: E402
 from build_video import FONT, FONT_REG, duration, ff, mix  # noqa: E402
 from rebuild_brand_process import icon_lettering  # noqa: E402
-from spot_audio import logo_sting  # noqa: E402
+from spot_audio import logo_sting, reggae_music  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
 # Peppa-like bright cartoon palette
@@ -114,13 +114,20 @@ VARIANTS = {
         "download": "stick-eftasa.mp4",
         "brand_lines": ["Από και προς το αεροδρόμιο"],
         "hold": 1.25,  # calmer pacing — let the contrast breathe
+        "music": "happy",  # sunny reggae bed
         "beats": [
             ("plane_land", "Προσγειώνεσαι"),
             ("arrivals_stress", "Οι άλλοι ψάχνουν ταξί\nκαι δεν βρίσκουν"),
-            ("you_smile", "Εσύ περνάς χαμογελαστός\nέχεις κλείσει ραντεβού"),
-            ("press_eftasa", "Πατάς το κουμπί «Έφτασα»"),
+            (
+                "you_smile",
+                "Εσύ περνάς ανέμελος\nγιατί ξέρεις ότι ένας οδηγός ταξί σε περιμένει",
+            ),
+            (
+                "press_eftasa",
+                "Πατάς το κουμπί «Έφτασα»\nνα έρθει ο οδηγός να σε πάρει",
+            ),
             ("send_exit", "Διαλέγεις έξοδο από 1 έως 5\nκαι τη στέλνεις στον οδηγό"),
-            ("calm_taxi", "Έρχεται ήρεμα μέσα από τη συμφορά\nκαι σε παίρνει"),
+            ("calm_taxi", "Το ταξί έρχεται να σε πάρει"),
             ("relax_end", "Φεύγεις άνετα\nτόσο απλά και ξεκούραστα"),
         ],
     },
@@ -983,11 +990,11 @@ async def speak(text: str, dst: Path) -> None:
     raise RuntimeError(last)
 
 
-def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None:
+def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path, bed_vol: float = 0.20) -> None:
     ff(
         "-i", str(bed), "-i", str(sting), "-i", str(vo),
         "-filter_complex",
-        "[0:a]volume=0.20,afade=t=in:st=0:d=0.7,"
+        f"[0:a]volume={bed_vol:.2f},afade=t=in:st=0:d=0.7,"
         f"afade=t=out:st={max(total - 1.6, 0.5):.2f}:d=1.4,"
         "aformat=sample_rates=44100:channel_layouts=stereo[m];"
         "[1:a]volume=0.50,aformat=sample_rates=44100:channel_layouts=stereo[s];"
@@ -1078,11 +1085,15 @@ async def build_one(slug: str, copy: dict) -> Path:
 
     vlen = duration(silent)
     bed = work / "bed.wav"
-    pretty_music(vlen + 0.5, bed)
+    happy = copy.get("music") == "happy"
+    if happy:
+        reggae_music(vlen + 0.5, bed)
+    else:
+        pretty_music(vlen + 0.5, bed)
     sting = work / "sting.wav"
     logo_sting(vlen + 0.5, brand_start + 0.15, sting)
     audio = work / "mix.m4a"
-    mix_audio(vo_wav, bed, sting, vlen, audio)
+    mix_audio(vo_wav, bed, sting, vlen, audio, bed_vol=0.28 if happy else 0.20)
 
     tmp = work / "tmp.mp4"
     mix(silent, audio, tmp)
