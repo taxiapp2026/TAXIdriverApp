@@ -164,6 +164,50 @@ def peppa_hills(base: Image.Image) -> None:
     draw.ellipse((380, 1120, 1320, 1720), fill=HILL2 + (255,))
 
 
+def airport_asphalt(base: Image.Image, y0: int = 1280) -> None:
+    """Cartoon grey curb / taxi lane — airport ground, not grass."""
+    draw = ImageDraw.Draw(base)
+    draw.rectangle((0, y0, W, H), fill=(165, 168, 172, 255))
+    # lighter sidewalk strip
+    draw.rectangle((0, y0, W, y0 + 70), fill=(210, 212, 216, 255))
+    # yellow curb
+    draw.rectangle((0, y0 + 70, W, y0 + 95), fill=GOLD + (255,))
+    draw.rectangle((0, y0 + 95, W, y0 + 102), fill=INK + (255,))
+    # lane dashes
+    for i in range(9):
+        x = 40 + i * 120
+        draw.rectangle((x, y0 + 220, x + 70, y0 + 245), fill=WHITE + (255,))
+
+
+def cartoon_arrivals_facade(base: Image.Image) -> None:
+    """Cartoon glass arrivals doors + ΑΦΙΞΕΙΣ sign (Peppa-style)."""
+    draw = ImageDraw.Draw(base)
+    # canopy first so the sign sits on top
+    draw.polygon([(20, 780), (W / 2, 640), (W - 20, 780)], fill=(255, 190, 150, 255), outline=INK)
+    draw.line([(20, 780), (W / 2, 640), (W - 20, 780)], fill=INK, width=6)
+    # terminal facade band
+    draw.rounded_rectangle((40, 780, W - 40, 1180), radius=28, fill=(255, 250, 235, 255), outline=INK, width=7)
+    # glass door panes
+    for i in range(4):
+        x0 = 80 + i * 240
+        draw.rounded_rectangle((x0, 860, x0 + 210, 1160), radius=18, fill=WINDOW + (255,), outline=INK, width=5)
+        draw.line((x0 + 105, 860, x0 + 105, 1160), fill=INK, width=4)
+        # door handle
+        draw.ellipse((x0 + 90, 1000, x0 + 120, 1030), fill=GOLD, outline=INK, width=3)
+    # ΑΦΙΞΕΙΣ sign on the canopy face
+    f = ImageFont.truetype(FONT, 40)
+    t = "ΑΦΙΞΕΙΣ"
+    tw = draw.textlength(t, font=f)
+    draw.rounded_rectangle(
+        ((W - tw) / 2 - 36, 680, (W + tw) / 2 + 36, 760),
+        radius=20,
+        fill=(255, 90, 90, 255),
+        outline=INK,
+        width=5,
+    )
+    draw.text(((W - tw) / 2, 698), t, font=f, fill=WHITE)
+
+
 def room_bg() -> Image.Image:
     img = Image.new("RGBA", (W, H), ROOM + (255,))
     draw = ImageDraw.Draw(img)
@@ -703,13 +747,8 @@ def scene_arrivals_stress(local: float, dur: float, line: str) -> Image.Image:
     """Crowd frantically searching apps — clearly failing to find a taxi."""
     img = sky_bg()
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 900, W, H), fill=(245, 240, 230))
-    # arrivals sign
-    f = ImageFont.truetype(FONT, 44)
-    t = "ΑΦΙΞΕΙΣ"
-    tw = draw.textlength(t, font=f)
-    draw.rounded_rectangle(((W - tw) / 2 - 40, 820, (W + tw) / 2 + 40, 900), radius=20, fill=(255, 120, 120), outline=INK, width=5)
-    draw.text(((W - tw) / 2, 838), t, font=f, fill=WHITE)
+    airport_asphalt(img, y0=1180)
+    cartoon_arrivals_facade(img)
     # big failed-search banner mid scene
     mid = local > dur * 0.35
     if mid:
@@ -717,13 +756,13 @@ def scene_arrivals_stress(local: float, dur: float, line: str) -> Image.Image:
         fb = ImageFont.truetype(FONT, 34)
         bw = draw.textlength(banner, font=fb)
         draw.rounded_rectangle(
-            ((W - bw) / 2 - 28, 960, (W + bw) / 2 + 28, 1030),
+            ((W - bw) / 2 - 28, 1220, (W + bw) / 2 + 28, 1290),
             radius=18,
             fill=(255, 90, 90),
             outline=INK,
             width=4,
         )
-        draw.text(((W - bw) / 2, 975), banner, font=fb, fill=WHITE)
+        draw.text(((W - bw) / 2, 1235), banner, font=fb, fill=WHITE)
     # stressed crowd with phones — searching, failing, tired
     positions = (180, 360, 540, 720, 900)
     fail_labels = ("Uber?", "Bolt?", "Taxi??", "??? ", "0 διαθέσιμα")
@@ -731,14 +770,14 @@ def scene_arrivals_stress(local: float, dur: float, line: str) -> Image.Image:
         _angry_stick(
             img,
             x,
-            1480 + (i % 2) * 24,
+            1580 + (i % 2) * 24,
             scale=0.85 + (i % 3) * 0.05,
             shake=local + i * 0.7,
             tired=True,
         )
         # app bubble that flips to FAIL / X
         bob = math.sin(local * 5 + i) * 8
-        bx, by = x - 36, 1080 - (i % 3) * 36 + bob
+        bx, by = x - 36, 1320 - (i % 3) * 36 + bob
         failed = (local + i * 0.35) % 2.4 > 1.1
         fill = (255, 160, 160) if failed else (255, 230, 180)
         draw.rounded_rectangle((bx, by, bx + 120, by + 48), radius=14, fill=fill, outline=INK, width=3)
@@ -748,7 +787,7 @@ def scene_arrivals_stress(local: float, dur: float, line: str) -> Image.Image:
         draw.text((bx + (120 - lw) / 2, by + 12), label, font=fs, fill=INK)
         if failed:
             # empty taxi silhouette with slash
-            tx, ty = x - 10, 1260
+            tx, ty = x - 10, 1450
             draw.ellipse((tx, ty, tx + 50, ty + 22), fill=(220, 220, 220), outline=INK, width=3)
             draw.line((tx - 4, ty + 24, tx + 54, ty - 2), fill=(220, 50, 60), width=5)
     caption(img, line)
@@ -759,16 +798,12 @@ def scene_you_smile(local: float, dur: float, line: str) -> Image.Image:
     """You stroll calmly past the stressed crowd — big contrast."""
     img = sky_bg()
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 900, W, H), fill=(245, 240, 230))
-    f = ImageFont.truetype(FONT, 40)
-    t = "ΑΦΙΞΕΙΣ"
-    tw = draw.textlength(t, font=f)
-    draw.rounded_rectangle(((W - tw) / 2 - 30, 840, (W + tw) / 2 + 30, 910), radius=18, fill=(255, 120, 120), outline=INK, width=4)
-    draw.text(((W - tw) / 2, 855), t, font=f, fill=WHITE)
+    airport_asphalt(img, y0=1180)
+    cartoon_arrivals_facade(img)
     # stressed people left/right — still failing, smaller / behind
     for i, x in enumerate((140, 280, 800, 940)):
-        _angry_stick(img, x, 1420 + (i % 2) * 18, scale=0.72, shake=local + i, tired=True)
-        bx, by = x - 28, 1120 + math.sin(local * 6 + i) * 5
+        _angry_stick(img, x, 1520 + (i % 2) * 18, scale=0.72, shake=local + i, tired=True)
+        bx, by = x - 28, 1280 + math.sin(local * 6 + i) * 5
         draw.rounded_rectangle((bx, by, bx + 88, by + 36), radius=12, fill=(255, 170, 170), outline=INK, width=3)
         fs = ImageFont.truetype(FONT, 15)
         lab = "✗" if i % 2 else "???"
@@ -777,19 +812,19 @@ def scene_you_smile(local: float, dur: float, line: str) -> Image.Image:
     # soft glow path under you — calm lane through chaos
     path = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     pd = ImageDraw.Draw(path)
-    pd.ellipse((280, 1380, 860, 1680), fill=(255, 245, 160, 90))
+    pd.ellipse((280, 1420, 860, 1720), fill=(255, 245, 160, 90))
     img.alpha_composite(path)
     # you walk slowly / calmly through smiling with suitcase
     k = ease(min(local / max(dur * 0.92, 0.1), 1.0))
     x = lerp(260, 740, k)
     walk_speed = 0.55  # slow stroll, not rush
-    stick(img, x, 1540, scale=1.35, walk=local * walk_speed, smile=True, wave=0.15)
-    suitcase(img, x + 70, 1460, scale=1.1)
+    stick(img, x, 1600, scale=1.35, walk=local * walk_speed, smile=True, wave=0.15)
+    suitcase(img, x + 70, 1520, scale=1.1)
     # little calm hearts / sparkles near you
     for j, (ox, oy) in enumerate(((-50, -180), (70, -200), (30, -150))):
         pulse = 0.5 + 0.5 * math.sin(local * 3 + j)
         r = 6 + 4 * pulse
-        draw.ellipse((x + ox - r, 1540 + oy - r, x + ox + r, 1540 + oy + r), fill=(255, 180, 200), outline=INK, width=2)
+        draw.ellipse((x + ox - r, 1600 + oy - r, x + ox + r, 1600 + oy + r), fill=(255, 180, 200), outline=INK, width=2)
     caption(img, line)
     return img
 
@@ -850,53 +885,62 @@ def scene_calm_taxi(local: float, dur: float, line: str) -> Image.Image:
     """Taxi glides calmly through the chaos; you board while others stay stressed."""
     img = sky_bg()
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 900, W, H), fill=GRASS)
-    # stressed crowd left behind — still searching, smaller
+    airport_asphalt(img, y0=1260)
+    airport(img)
+    # stressed crowd left behind — still searching on the curb
     for i, x in enumerate((120, 250, 380, 860, 980)):
-        _angry_stick(img, x, 1240 + (i % 2) * 16, scale=0.58, shake=local + i, tired=True)
+        _angry_stick(img, x, 1380 + (i % 2) * 16, scale=0.58, shake=local + i, tired=True)
         if i < 3:
-            bx, by = x - 20, 1050 + math.sin(local * 5 + i) * 4
+            bx, by = x - 20, 1180 + math.sin(local * 5 + i) * 4
             draw.rounded_rectangle((bx, by, bx + 70, by + 30), radius=10, fill=(255, 170, 170), outline=INK, width=2)
             fs = ImageFont.truetype(FONT, 14)
             draw.text((bx + 18, by + 6), "✗", font=fs, fill=INK)
     # soft calm lane for your taxi
     path = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    ImageDraw.Draw(path).rounded_rectangle((40, 1380, W - 40, 1720), radius=60, fill=(255, 245, 170, 70))
+    ImageDraw.Draw(path).rounded_rectangle((40, 1450, W - 40, 1780), radius=60, fill=(255, 245, 170, 70))
     img.alpha_composite(path)
     # calm taxi arrives slowly (not rushing)
     k = ease(min(local / (dur * 0.62), 1.0))
     car_x = lerp(-240, 500, k)
-    taxi_car(img, car_x, 1540, scale=1.28, wheel_spin=local * 0.9)
+    taxi_car(img, car_x, 1620, scale=1.28, wheel_spin=local * 0.9)
     if local < dur * 0.7:
-        stick(img, 780, 1540, scale=1.25, smile=True)
-        suitcase(img, 840, 1465, scale=1.05)
+        stick(img, 780, 1620, scale=1.25, smile=True)
+        suitcase(img, 840, 1545, scale=1.05)
     else:
         board = ease((local - dur * 0.7) / max(dur * 0.3, 0.01))
-        stick(img, lerp(780, 560, board), 1540, scale=1.12, smile=True, walk=0.0)
+        stick(img, lerp(780, 560, board), 1620, scale=1.12, smile=True, walk=0.0)
     caption(img, line)
     return img
 
 
 def scene_relax_end(local: float, dur: float, line: str) -> Image.Image:
-    """You drive away comfortably — crowd left behind still searching."""
+    """You drive away comfortably — crowd left behind at cartoon airport curb."""
     img = sky_bg()
-    peppa_hills(img)
     draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 1340, W, H), fill=GRASS)
+    airport_asphalt(img, y0=1240)
+    # smaller distant cartoon terminal
+    draw.rounded_rectangle((80, 820, 1000, 1120), radius=28, fill=(255, 250, 235, 255), outline=INK, width=6)
+    draw.polygon([(60, 828), (540, 660), (1020, 828)], fill=(255, 170, 180, 255), outline=INK)
+    draw.line([(60, 828), (540, 660), (1020, 828)], fill=INK, width=6)
+    for i in range(3):
+        x = 220 + i * 220
+        draw.rounded_rectangle((x, 900, x + 140, 1120), radius=16, fill=WINDOW + (255,), outline=INK, width=4)
+    f = ImageFont.truetype(FONT, 32)
+    t = "ΑΕΡΟΔΡΟΜΙΟ"
+    tw = draw.textlength(t, font=f)
+    draw.rounded_rectangle(((W - tw) / 2 - 20, 760, (W + tw) / 2 + 20, 820), radius=16, fill=CAPTION_BG, outline=INK, width=4)
+    draw.text(((W - tw) / 2, 772), t, font=f, fill=INK)
     # tiny stressed figures fading in the distance (left behind)
-    for i, x in enumerate((80, 160, 240)):
+    for i, x in enumerate((100, 180, 260)):
         fade = max(0.35, 1.0 - local / max(dur, 0.1) * 0.5)
-        _angry_stick(img, x, 1280, scale=0.45 * fade + 0.2, shake=local + i, tired=True)
+        _angry_stick(img, x, 1220, scale=0.45 * fade + 0.2, shake=local + i, tired=True)
     # taxi driving away calmly — slow ease
     k = ease(min(local / max(dur * 0.95, 0.1), 1.0))
     car_x = lerp(220, 980, k)
-    taxi_car(img, car_x, 1500, scale=1.35, wheel_spin=local * 1.6)
+    taxi_car(img, car_x, 1560, scale=1.35, wheel_spin=local * 1.6)
     # smile face in window
-    draw.ellipse((car_x - 18, 1355, car_x + 22, 1395), fill=WHITE, outline=INK, width=4)
-    draw.arc((car_x - 10, 1368, car_x + 14, 1388), 20, 160, fill=INK, width=3)
-    # flowers / calm vibes
-    for fx, fy in ((120, 1580), (220, 1620), (980, 1600), (880, 1560)):
-        draw.ellipse((fx, fy, fx + 26, fy + 26), fill=(255, 140, 180), outline=INK, width=3)
+    draw.ellipse((car_x - 18, 1415, car_x + 22, 1455), fill=WHITE, outline=INK, width=4)
+    draw.arc((car_x - 10, 1428, car_x + 14, 1448), 20, 160, fill=INK, width=3)
     caption(img, line)
     return img
 
