@@ -107,6 +107,23 @@ VARIANTS = {
             ),
         ],
     },
+    # 4) Landed calm booking vs stressed crowd looking for taxis
+    "eftasa": {
+        "out": ROOT / "taxi-and-fly-stick-eftasa.mp4",
+        "art": "taxi_and_fly_stick_eftasa.mp4",
+        "download": "stick-eftasa.mp4",
+        "brand_lines": ["Από και προς το αεροδρόμιο"],
+        "hold": 1.25,  # calmer pacing — let the contrast breathe
+        "beats": [
+            ("plane_land", "Προσγειώνεσαι"),
+            ("arrivals_stress", "Οι άλλοι ψάχνουν ταξί\nκαι δεν βρίσκουν"),
+            ("you_smile", "Εσύ περνάς χαμογελαστός\nέχεις κλείσει ραντεβού"),
+            ("press_eftasa", "Πατάς το κουμπί «Έφτασα»"),
+            ("send_exit", "Διαλέγεις έξοδο από 1 έως 5\nκαι τη στέλνεις στον οδηγό"),
+            ("calm_taxi", "Έρχεται ήρεμα μέσα από τη συμφορά\nκαι σε παίρνει"),
+            ("relax_end", "Φεύγεις άνετα\nτόσο απλά και ξεκούραστα"),
+        ],
+    },
 }
 
 
@@ -597,6 +614,293 @@ def scene_drive(local: float, dur: float, line: str) -> Image.Image:
     return img
 
 
+def _angry_stick(
+    base: Image.Image,
+    cx: float,
+    cy: float,
+    scale: float = 0.9,
+    shake: float = 0.0,
+    tired: bool = False,
+) -> None:
+    """Stressed person: frown + phone up + optional sweat/tired marks."""
+    draw = ImageDraw.Draw(base)
+    s = scale
+    jx = math.sin(shake * 14) * 5 + math.sin(shake * 29) * 2
+    head_r = 34 * s
+    body = 70 * s
+    leg = 64 * s
+    thick = max(8, int(10 * s))
+    hip_y = cy - leg
+    shoulder_y = hip_y - body
+    head_y = shoulder_y - head_r
+    cx = cx + jx
+    put_shadow(base, cx, cy + 4, 40 * s, 12 * s)
+    draw.ellipse((cx - head_r, head_y - head_r, cx + head_r, head_y + head_r), fill=WHITE, outline=INK, width=thick)
+    er = max(2, int(3.5 * s))
+    draw.ellipse((cx - 12 * s - er, head_y - 4 * s - er, cx - 12 * s + er, head_y - 4 * s + er), fill=INK)
+    draw.ellipse((cx + 12 * s - er, head_y - 4 * s - er, cx + 12 * s + er, head_y - 4 * s + er), fill=INK)
+    # frown
+    draw.arc((cx - 14 * s, head_y + 10 * s, cx + 14 * s, head_y + 28 * s), 200, 340, fill=INK, width=max(3, int(4 * s)))
+    # angry brows
+    draw.line((cx - 18 * s, head_y - 12 * s, cx - 6 * s, head_y - 6 * s), fill=INK, width=4)
+    draw.line((cx + 6 * s, head_y - 6 * s, cx + 18 * s, head_y - 12 * s), fill=INK, width=4)
+    # sweat drops / fatigue
+    if tired:
+        for sx, sy in ((-22, -8), (-28, 6), (26, -4)):
+            draw.ellipse(
+                (cx + sx * s, head_y + sy * s, cx + (sx + 8) * s, head_y + (sy + 14) * s),
+                fill=(120, 200, 255),
+                outline=INK,
+                width=2,
+            )
+        # zig-zag frustration above head
+        zx, zy = cx - 8 * s, head_y - head_r - 28 * s
+        draw.line(
+            [(zx, zy + 18), (zx + 10, zy), (zx + 2, zy + 10), (zx + 16, zy - 6)],
+            fill=(230, 60, 70),
+            width=4,
+        )
+    rounded_line(draw, (cx, head_y + head_r), (cx, hip_y), thick)
+    # phone raised — red fail screen
+    px, py = cx + 38 * s, shoulder_y - 10 * s
+    draw.rounded_rectangle((px, py, px + 28 * s, py + 48 * s), radius=6, fill=INK)
+    draw.rounded_rectangle((px + 4 * s, py + 6 * s, px + 24 * s, py + 38 * s), radius=4, fill=(255, 100, 100))
+    # big X on phone = no taxi found
+    draw.line((px + 8 * s, py + 12 * s, px + 20 * s, py + 30 * s), fill=WHITE, width=3)
+    draw.line((px + 20 * s, py + 12 * s, px + 8 * s, py + 30 * s), fill=WHITE, width=3)
+    rounded_line(draw, (cx, shoulder_y + 8 * s), (px + 8 * s, py + 40 * s), thick)
+    rounded_line(draw, (cx, shoulder_y + 8 * s), (cx - 40 * s, shoulder_y + 50 * s), thick)
+    rounded_line(draw, (cx, hip_y), (cx - 22 * s, cy), thick)
+    rounded_line(draw, (cx, hip_y), (cx + 22 * s, cy), thick)
+
+
+def scene_plane_land(local: float, dur: float, line: str) -> Image.Image:
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    # runway strip at bottom
+    draw.rectangle((0, 1500, W, H), fill=(190, 195, 200))
+    draw.rectangle((0, 1580, W, 1620), fill=GOLD)
+    for i in range(8):
+        x = 80 + i * 130
+        draw.rectangle((x, 1680, x + 70, 1710), fill=WHITE)
+    # plane descending slowly / calmly
+    k = ease(min(local / max(dur * 0.9, 0.1), 1.0))
+    px = lerp(-120, 620, k)
+    py = lerp(520, 1180, k)
+    draw.ellipse((px, py, px + 260, py + 70), fill=WHITE, outline=INK, width=6)
+    draw.polygon([(px + 60, py + 15), (px + 20, py - 55), (px + 110, py + 15)], fill=(255, 170, 180), outline=INK)
+    draw.polygon([(px + 150, py + 25), (px + 230, py + 95), (px + 130, py + 40)], fill=(255, 170, 180), outline=INK)
+    draw.ellipse((px + 210, py + 10, px + 250, py + 50), fill=WINDOW, outline=INK, width=4)
+    # little windows
+    for i in range(4):
+        wx = px + 70 + i * 30
+        draw.ellipse((wx, py + 22, wx + 18, py + 42), fill=WINDOW, outline=INK, width=2)
+    caption(img, line)
+    return img
+
+
+def scene_arrivals_stress(local: float, dur: float, line: str) -> Image.Image:
+    """Crowd frantically searching apps — clearly failing to find a taxi."""
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 900, W, H), fill=(245, 240, 230))
+    # arrivals sign
+    f = ImageFont.truetype(FONT, 44)
+    t = "ΑΦΙΞΕΙΣ"
+    tw = draw.textlength(t, font=f)
+    draw.rounded_rectangle(((W - tw) / 2 - 40, 820, (W + tw) / 2 + 40, 900), radius=20, fill=(255, 120, 120), outline=INK, width=5)
+    draw.text(((W - tw) / 2, 838), t, font=f, fill=WHITE)
+    # big failed-search banner mid scene
+    mid = local > dur * 0.35
+    if mid:
+        banner = "Δεν βρίσκουν ταξί…"
+        fb = ImageFont.truetype(FONT, 34)
+        bw = draw.textlength(banner, font=fb)
+        draw.rounded_rectangle(
+            ((W - bw) / 2 - 28, 960, (W + bw) / 2 + 28, 1030),
+            radius=18,
+            fill=(255, 90, 90),
+            outline=INK,
+            width=4,
+        )
+        draw.text(((W - bw) / 2, 975), banner, font=fb, fill=WHITE)
+    # stressed crowd with phones — searching, failing, tired
+    positions = (180, 360, 540, 720, 900)
+    fail_labels = ("Uber?", "Bolt?", "Taxi??", "??? ", "0 διαθέσιμα")
+    for i, x in enumerate(positions):
+        _angry_stick(
+            img,
+            x,
+            1480 + (i % 2) * 24,
+            scale=0.85 + (i % 3) * 0.05,
+            shake=local + i * 0.7,
+            tired=True,
+        )
+        # app bubble that flips to FAIL / X
+        bob = math.sin(local * 5 + i) * 8
+        bx, by = x - 36, 1080 - (i % 3) * 36 + bob
+        failed = (local + i * 0.35) % 2.4 > 1.1
+        fill = (255, 160, 160) if failed else (255, 230, 180)
+        draw.rounded_rectangle((bx, by, bx + 120, by + 48), radius=14, fill=fill, outline=INK, width=3)
+        fs = ImageFont.truetype(FONT, 18)
+        label = "✗ όχι" if failed else fail_labels[i % len(fail_labels)]
+        lw = draw.textlength(label, font=fs)
+        draw.text((bx + (120 - lw) / 2, by + 12), label, font=fs, fill=INK)
+        if failed:
+            # empty taxi silhouette with slash
+            tx, ty = x - 10, 1260
+            draw.ellipse((tx, ty, tx + 50, ty + 22), fill=(220, 220, 220), outline=INK, width=3)
+            draw.line((tx - 4, ty + 24, tx + 54, ty - 2), fill=(220, 50, 60), width=5)
+    caption(img, line)
+    return img
+
+
+def scene_you_smile(local: float, dur: float, line: str) -> Image.Image:
+    """You stroll calmly past the stressed crowd — big contrast."""
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 900, W, H), fill=(245, 240, 230))
+    f = ImageFont.truetype(FONT, 40)
+    t = "ΑΦΙΞΕΙΣ"
+    tw = draw.textlength(t, font=f)
+    draw.rounded_rectangle(((W - tw) / 2 - 30, 840, (W + tw) / 2 + 30, 910), radius=18, fill=(255, 120, 120), outline=INK, width=4)
+    draw.text(((W - tw) / 2, 855), t, font=f, fill=WHITE)
+    # stressed people left/right — still failing, smaller / behind
+    for i, x in enumerate((140, 280, 800, 940)):
+        _angry_stick(img, x, 1420 + (i % 2) * 18, scale=0.72, shake=local + i, tired=True)
+        bx, by = x - 28, 1120 + math.sin(local * 6 + i) * 5
+        draw.rounded_rectangle((bx, by, bx + 88, by + 36), radius=12, fill=(255, 170, 170), outline=INK, width=3)
+        fs = ImageFont.truetype(FONT, 15)
+        lab = "✗" if i % 2 else "???"
+        lw = draw.textlength(lab, font=fs)
+        draw.text((bx + (88 - lw) / 2, by + 8), lab, font=fs, fill=INK)
+    # soft glow path under you — calm lane through chaos
+    path = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    pd = ImageDraw.Draw(path)
+    pd.ellipse((280, 1380, 860, 1680), fill=(255, 245, 160, 90))
+    img.alpha_composite(path)
+    # you walk slowly / calmly through smiling with suitcase
+    k = ease(min(local / max(dur * 0.92, 0.1), 1.0))
+    x = lerp(260, 740, k)
+    walk_speed = 0.55  # slow stroll, not rush
+    stick(img, x, 1540, scale=1.35, walk=local * walk_speed, smile=True, wave=0.15)
+    suitcase(img, x + 70, 1460, scale=1.1)
+    # little calm hearts / sparkles near you
+    for j, (ox, oy) in enumerate(((-50, -180), (70, -200), (30, -150))):
+        pulse = 0.5 + 0.5 * math.sin(local * 3 + j)
+        r = 6 + 4 * pulse
+        draw.ellipse((x + ox - r, 1540 + oy - r, x + ox + r, 1540 + oy + r), fill=(255, 180, 200), outline=INK, width=2)
+    caption(img, line)
+    return img
+
+
+def scene_press_eftasa(local: float, dur: float, line: str) -> Image.Image:
+    img = room_bg()
+    # big phone with Έφτασα button — gentle pulse
+    bob = math.sin(local * 2.2) * 3
+    phone(img, W / 2, 700 + bob, lit=True, bounce=0)
+    draw = ImageDraw.Draw(img)
+    pulse = 0.5 + 0.5 * math.sin(local * 4)
+    bw, bh = 220, 90
+    bx, by = W / 2 - bw / 2, 780 + bob
+    green = (80, int(200 + 40 * pulse), 110)
+    draw.rounded_rectangle((bx, by, bx + bw, by + bh), radius=28, fill=green, outline=INK, width=6)
+    f = ImageFont.truetype(FONT, 40)
+    t = "ΕΦΤΑΣΑ"
+    tw = draw.textlength(t, font=f)
+    draw.text((W / 2 - tw / 2, by + 22), t, font=f, fill=WHITE)
+    stick(img, W / 2, 1550, scale=1.15, smile=True)
+    caption(img, line)
+    return img
+
+
+def scene_send_exit(local: float, dur: float, line: str) -> Image.Image:
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 0, W, H), fill=(255, 245, 230, 255))
+    # phone UI choosing exit 1-5
+    draw.rounded_rectangle((160, 420, 920, 1400), radius=48, fill=INK)
+    draw.rounded_rectangle((190, 470, 890, 1320), radius=36, fill=(255, 252, 240))
+    f = ImageFont.truetype(FONT, 36)
+    title = "Ποια έξοδος είσαι;"
+    tw = draw.textlength(title, font=f)
+    draw.text(((W - tw) / 2, 520), title, font=f, fill=INK)
+    # exit buttons 1-5 — slow deliberate selection
+    selected = 1 + int(min(local / max(dur * 0.75, 0.01), 0.999) * 5)
+    for i in range(1, 6):
+        x = 230 + (i - 1) * 120
+        y = 680
+        fill = GOLD if i == selected else (230, 230, 230)
+        draw.rounded_rectangle((x, y, x + 100, y + 100), radius=24, fill=fill, outline=INK, width=5)
+        fs = ImageFont.truetype(FONT, 48)
+        n = str(i)
+        nw = draw.textlength(n, font=fs)
+        draw.text((x + (100 - nw) / 2, y + 22), n, font=fs, fill=INK)
+    # send chip
+    draw.rounded_rectangle((300, 980, 780, 1100), radius=30, fill=(80, 200, 120), outline=INK, width=5)
+    fs = ImageFont.truetype(FONT, 34)
+    msg = f"Στέλνω έξοδο {selected}"
+    mw = draw.textlength(msg, font=fs)
+    draw.text(((W - mw) / 2, 1015), msg, font=fs, fill=WHITE)
+    caption(img, line)
+    return img
+
+
+def scene_calm_taxi(local: float, dur: float, line: str) -> Image.Image:
+    """Taxi glides calmly through the chaos; you board while others stay stressed."""
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 900, W, H), fill=GRASS)
+    # stressed crowd left behind — still searching, smaller
+    for i, x in enumerate((120, 250, 380, 860, 980)):
+        _angry_stick(img, x, 1240 + (i % 2) * 16, scale=0.58, shake=local + i, tired=True)
+        if i < 3:
+            bx, by = x - 20, 1050 + math.sin(local * 5 + i) * 4
+            draw.rounded_rectangle((bx, by, bx + 70, by + 30), radius=10, fill=(255, 170, 170), outline=INK, width=2)
+            fs = ImageFont.truetype(FONT, 14)
+            draw.text((bx + 18, by + 6), "✗", font=fs, fill=INK)
+    # soft calm lane for your taxi
+    path = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(path).rounded_rectangle((40, 1380, W - 40, 1720), radius=60, fill=(255, 245, 170, 70))
+    img.alpha_composite(path)
+    # calm taxi arrives slowly (not rushing)
+    k = ease(min(local / (dur * 0.62), 1.0))
+    car_x = lerp(-240, 500, k)
+    taxi_car(img, car_x, 1540, scale=1.28, wheel_spin=local * 0.9)
+    if local < dur * 0.7:
+        stick(img, 780, 1540, scale=1.25, smile=True)
+        suitcase(img, 840, 1465, scale=1.05)
+    else:
+        board = ease((local - dur * 0.7) / max(dur * 0.3, 0.01))
+        stick(img, lerp(780, 560, board), 1540, scale=1.12, smile=True, walk=0.0)
+    caption(img, line)
+    return img
+
+
+def scene_relax_end(local: float, dur: float, line: str) -> Image.Image:
+    """You drive away comfortably — crowd left behind still searching."""
+    img = sky_bg()
+    peppa_hills(img)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
+    # tiny stressed figures fading in the distance (left behind)
+    for i, x in enumerate((80, 160, 240)):
+        fade = max(0.35, 1.0 - local / max(dur, 0.1) * 0.5)
+        _angry_stick(img, x, 1280, scale=0.45 * fade + 0.2, shake=local + i, tired=True)
+    # taxi driving away calmly — slow ease
+    k = ease(min(local / max(dur * 0.95, 0.1), 1.0))
+    car_x = lerp(220, 980, k)
+    taxi_car(img, car_x, 1500, scale=1.35, wheel_spin=local * 1.6)
+    # smile face in window
+    draw.ellipse((car_x - 18, 1355, car_x + 22, 1395), fill=WHITE, outline=INK, width=4)
+    draw.arc((car_x - 10, 1368, car_x + 14, 1388), 20, 160, fill=INK, width=3)
+    # flowers / calm vibes
+    for fx, fy in ((120, 1580), (220, 1620), (980, 1600), (880, 1560)):
+        draw.ellipse((fx, fy, fx + 26, fy + 26), fill=(255, 140, 180), outline=INK, width=3)
+    caption(img, line)
+    return img
+
+
 SCENES = {
     "start_city": scene_start_city,
     "start_airport": scene_start_airport,
@@ -604,6 +908,13 @@ SCENES = {
     "pickup_city": scene_pickup_city,
     "pickup_airport": scene_pickup_airport,
     "drive": scene_drive,
+    "plane_land": scene_plane_land,
+    "arrivals_stress": scene_arrivals_stress,
+    "you_smile": scene_you_smile,
+    "press_eftasa": scene_press_eftasa,
+    "send_exit": scene_send_exit,
+    "calm_taxi": scene_calm_taxi,
+    "relax_end": scene_relax_end,
 }
 
 
@@ -657,7 +968,7 @@ async def build_one(slug: str, copy: dict) -> Path:
     # Speak each line alone. Screen text == spoken line. Slow + simple.
     parts: list[Path] = []
     scene_durs: list[float] = []
-    hold = 0.85  # quiet beat after each line (same on video + audio)
+    hold = float(copy.get("hold", 0.85))  # quiet beat after each line
     for i, (scene_key, line) in enumerate(beats):
         mp3 = work / f"line_{i}.mp3"
         wav = work / f"line_{i}.wav"
