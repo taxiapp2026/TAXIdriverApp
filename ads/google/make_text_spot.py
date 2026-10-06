@@ -35,24 +35,38 @@ TAIL = 1.5
 HOLD = 1.05
 
 # On-screen text = spoken line.
-LINES = [
-    "Είμαστε μια καινούργια ελληνική εφαρμογή",
-    "Σκοπός μας είναι ο πελάτης να εξυπηρετηθεί\n"
-    "με τον πιο επαγγελματικό και εύκολο τρόπο,\n"
-    "για να χτιστεί μια καλή σχέση με την εφαρμογή",
-    "Και η γνώμη του κάθε πελάτη\nθα βελτιώνει την εφαρμογή",
-    "Ο επαγγελματίας οδηγός ταξί\nέχει μια εφαρμογή χωρίς μεσάζοντες",
-    "Κανείς δεν αποφασίζει για εκείνον\nκανείς δεν παίρνει από το κομμάτι του",
-    "Εδώ οι επαγγελματίες οδηγοί ταξί ενώνονται",
-    "Γνωρίζοντας την εφαρμογή στον κόσμο\nο ένας δίνει δουλειά στον άλλον",
-    "Αγάπη και για τον πελάτη\nκαι για τον οδηγό ταξί",
-    "Για αυτό αξίζει η εφαρμογή",
-]
-
-OUT = ROOT / "taxi-and-fly-text-agapi.mp4"
-ART_NAME = "taxi_and_fly_text_agapi.mp4"
-DOWNLOAD = "text-agapi.mp4"
-BRAND_LINES = ["Από και προς το αεροδρόμιο"]
+VARIANTS = {
+    "agapi": {
+        "out": ROOT / "taxi-and-fly-text-agapi.mp4",
+        "art": "taxi_and_fly_text_agapi.mp4",
+        "download": "text-agapi.mp4",
+        "brand_lines": ["Από και προς το αεροδρόμιο"],
+        "lines": [
+            "Είμαστε μια καινούργια ελληνική εφαρμογή",
+            "Σκοπός μας είναι ο πελάτης να εξυπηρετηθεί\n"
+            "με τον πιο επαγγελματικό και εύκολο τρόπο,\n"
+            "για να χτιστεί μια καλή σχέση με την εφαρμογή",
+            "Και η γνώμη του κάθε πελάτη\nθα βελτιώνει την εφαρμογή",
+            "Ο επαγγελματίας οδηγός ταξί\nέχει μια εφαρμογή χωρίς μεσάζοντες",
+            "Κανείς δεν αποφασίζει για εκείνον\nκανείς δεν παίρνει από το κομμάτι του",
+            "Εδώ οι επαγγελματίες οδηγοί ταξί ενώνονται",
+            "Γνωρίζοντας την εφαρμογή στον κόσμο\nο ένας δίνει δουλειά στον άλλον",
+            "Αγάπη και για τον πελάτη\nκαι για τον οδηγό ταξί",
+            "Για αυτό αξίζει η εφαρμογή",
+        ],
+    },
+    # Short punch: love + worth it only
+    "axizei": {
+        "out": ROOT / "taxi-and-fly-text-axizei.mp4",
+        "art": "taxi_and_fly_text_axizei.mp4",
+        "download": "text-axizei.mp4",
+        "brand_lines": ["Από και προς το αεροδρόμιο"],
+        "lines": [
+            "Αγάπη και για τον πελάτη\nκαι για τον οδηγό ταξί",
+            "Για αυτό αξίζει η εφαρμογή",
+        ],
+    },
+}
 
 
 def ease(k: float) -> float:
@@ -213,13 +227,15 @@ def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None
     )
 
 
-async def build() -> Path:
-    work = BUILD / "agapi"
+async def build_one(slug: str, copy: dict) -> Path:
+    work = BUILD / slug
     work.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = list(copy["lines"])
+    out: Path = copy["out"]
 
     parts: list[Path] = []
     scene_durs: list[float] = []
-    for i, line in enumerate(LINES):
+    for i, line in enumerate(lines):
         mp3 = work / f"line_{i}.mp3"
         wav = work / f"line_{i}.wav"
         await speak(line.replace("\n", " ") + ".", mp3)
@@ -229,7 +245,7 @@ async def build() -> Path:
         d = duration(wav) + HOLD
         scene_durs.append(d)
         parts.extend([wav, pad])
-        print(f"[text-agapi] {i + 1}: «{line.replace(chr(10), ' ')}» {d:.2f}s")
+        print(f"[text-{slug}] {i + 1}: «{line.replace(chr(10), ' ')}» {d:.2f}s")
 
     brand_mp3 = work / "brand.mp3"
     brand_wav = work / "brand.wav"
@@ -249,7 +265,7 @@ async def build() -> Path:
     story_dur = sum(scene_durs)
     brand_start = story_dur
     total = story_dur + brand_dur
-    print(f"[text-agapi] total {total:.2f}s")
+    print(f"[text-{slug}] total {total:.2f}s")
 
     frames = work / "frames"
     shutil.rmtree(frames, ignore_errors=True)
@@ -257,11 +273,11 @@ async def build() -> Path:
 
     idx = 0
     t_abs = 0.0
-    for i, (line, seconds) in enumerate(zip(LINES, scene_durs)):
+    for i, (line, seconds) in enumerate(zip(lines, scene_durs)):
         n = int(round(seconds * FPS))
         for f_i in range(n):
             local = f_i / FPS
-            img = text_frame(t_abs + local, local, line, i, len(LINES))
+            img = text_frame(t_abs + local, local, line, i, len(lines))
             img.convert("RGB").save(frames / f"{idx:05d}.png")
             idx += 1
         t_abs += seconds
@@ -269,7 +285,7 @@ async def build() -> Path:
     need = int(round(total * FPS))
     while idx < need:
         t = idx / FPS
-        img = brand_frame(t, brand_start, BRAND_LINES)
+        img = brand_frame(t, brand_start, copy["brand_lines"])
         img.convert("RGB").save(frames / f"{idx:05d}.png")
         idx += 1
 
@@ -287,7 +303,7 @@ async def build() -> Path:
 
     vlen = duration(silent)
     bed = work / "bed.wav"
-    hope_music(vlen + 0.5, bed)  # warm hopeful bed — not reggae
+    hope_music(vlen + 0.5, bed)
     sting = work / "sting.wav"
     logo_sting(vlen + 0.5, brand_start + 0.15, sting)
     audio = work / "mix.m4a"
@@ -301,18 +317,29 @@ async def build() -> Path:
         "-preset", "medium", "-crf", "17",
         "-fps_mode", "cfr", "-r", str(FPS),
         "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "192k",
-        "-movflags", "+faststart", str(OUT),
+        "-movflags", "+faststart", str(out),
     )
 
     ART.mkdir(parents=True, exist_ok=True)
     (ART / "downloads").mkdir(parents=True, exist_ok=True)
-    data = OUT.read_bytes()
-    (ART / ART_NAME).write_bytes(data)
-    (ART / "downloads" / DOWNLOAD).write_bytes(data)
+    data = out.read_bytes()
+    (ART / copy["art"]).write_bytes(data)
+    (ART / "downloads" / copy["download"]).write_bytes(data)
     shutil.rmtree(frames, ignore_errors=True)
-    print("Wrote", OUT.name, round(duration(OUT), 2), "s")
-    return OUT
+    print("Wrote", out.name, round(duration(out), 2), "s")
+    return out
+
+
+async def main(argv: list[str] | None = None) -> int:
+    wanted = set(sys.argv[1:] if argv is None else argv)
+    items = [(k, v) for k, v in VARIANTS.items() if not wanted or k in wanted]
+    if not items:
+        print("Known:", ", ".join(VARIANTS))
+        return 1
+    for slug, copy in items:
+        await build_one(slug, copy)
+    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(asyncio.run(build()) and 0)
+    raise SystemExit(asyncio.run(main()))
