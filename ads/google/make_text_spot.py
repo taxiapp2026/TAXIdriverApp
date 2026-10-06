@@ -66,6 +66,21 @@ VARIANTS = {
             "Για αυτό αξίζει η εφαρμογή",
         ],
     },
+    # Fast clear 4-line spot
+    "grigoro": {
+        "out": ROOT / "taxi-and-fly-text-grigoro.mp4",
+        "art": "taxi_and_fly_text_grigoro.mp4",
+        "download": "text-grigoro.mp4",
+        "brand_lines": ["Από και προς το αεροδρόμιο"],
+        "hold": 0.55,
+        "rate": "-6%",
+        "lines": [
+            "Καινούργια ελληνική εφαρμογή",
+            "Εύκολη εξυπηρέτηση για τον πελάτη",
+            "Χωρίς μεσάζοντες για τον οδηγό ταξί",
+            "Αγάπη και για τους δύο\nΓια αυτό αξίζει",
+        ],
+    },
 }
 
 
@@ -186,12 +201,12 @@ def brand_frame(t: float, start: float, lines: list[str]) -> Image.Image:
     return img
 
 
-async def speak(text: str, dst: Path) -> None:
+async def speak(text: str, dst: Path, rate: str = RATE) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     last: Exception | None = None
     for attempt in range(8):
         try:
-            comm = edge_tts.Communicate(text, VOICE, rate=RATE, pitch="+0Hz")
+            comm = edge_tts.Communicate(text, VOICE, rate=rate, pitch="+0Hz")
             audio = bytearray()
             async for chunk in comm.stream():
                 if chunk["type"] == "audio":
@@ -235,21 +250,23 @@ async def build_one(slug: str, copy: dict) -> Path:
 
     parts: list[Path] = []
     scene_durs: list[float] = []
+    hold = float(copy.get("hold", HOLD))
+    rate = str(copy.get("rate", RATE))
     for i, line in enumerate(lines):
         mp3 = work / f"line_{i}.mp3"
         wav = work / f"line_{i}.wav"
-        await speak(line.replace("\n", " ") + ".", mp3)
+        await speak(line.replace("\n", " ") + ".", mp3, rate=rate)
         ff("-i", str(mp3), "-ac", "1", "-ar", "44100", str(wav))
         pad = work / f"line_{i}_pad.wav"
-        ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{HOLD:.3f}", str(pad))
-        d = duration(wav) + HOLD
+        ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{hold:.3f}", str(pad))
+        d = duration(wav) + hold
         scene_durs.append(d)
         parts.extend([wav, pad])
         print(f"[text-{slug}] {i + 1}: «{line.replace(chr(10), ' ')}» {d:.2f}s")
 
     brand_mp3 = work / "brand.mp3"
     brand_wav = work / "brand.wav"
-    await speak("Taxi and Fly. Από και προς το αεροδρόμιο.", brand_mp3)
+    await speak("Taxi and Fly. Από και προς το αεροδρόμιο.", brand_mp3, rate=rate)
     ff("-i", str(brand_mp3), "-ac", "1", "-ar", "44100", str(brand_wav))
     brand_pad = work / "brand_pad.wav"
     ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{TAIL:.3f}", str(brand_pad))
