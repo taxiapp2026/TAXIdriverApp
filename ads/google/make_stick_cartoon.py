@@ -26,7 +26,7 @@ sys.path.insert(0, str(ROOT))
 from add_pretty_music import pretty_music  # noqa: E402
 from build_video import FONT, FONT_REG, duration, ff, mix  # noqa: E402
 from rebuild_brand_process import icon_lettering  # noqa: E402
-from spot_audio import logo_sting  # noqa: E402
+from spot_audio import logo_sting, reggae_music  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
 # Peppa-like bright cartoon palette
@@ -107,6 +107,43 @@ VARIANTS = {
             ),
         ],
     },
+    # 4) Love for both sides — new Greek app
+    "agapi": {
+        "out": ROOT / "taxi-and-fly-stick-agapi.mp4",
+        "art": "taxi_and_fly_stick_agapi.mp4",
+        "download": "stick-agapi.mp4",
+        "brand_lines": ["Από και προς το αεροδρόμιο"],
+        "hold": 1.15,
+        "music": "happy",
+        "beats": [
+            ("new_app", "Είμαστε μια καινούργια ελληνική εφαρμογή"),
+            (
+                "serve_easy",
+                "Σκοπός μας είναι ο πελάτης να εξυπηρετηθεί\n"
+                "με τον πιο επαγγελματικό και εύκολο τρόπο,\n"
+                "για να χτιστεί μια καλή σχέση με την εφαρμογή",
+            ),
+            (
+                "feedback",
+                "Και η γνώμη του κάθε πελάτη\nθα βελτιώνει την εφαρμογή",
+            ),
+            (
+                "no_middleman",
+                "Ο επαγγελματίας οδηγός ταξί\nέχει μια εφαρμογή χωρίς μεσάζοντες",
+            ),
+            (
+                "driver_free",
+                "Κανείς δεν αποφασίζει για εκείνον\nκανείς δεν παίρνει από το κομμάτι του",
+            ),
+            ("drivers_unite", "Εδώ οι επαγγελματίες οδηγοί ταξί ενώνονται"),
+            (
+                "share_work",
+                "Γνωρίζοντας την εφαρμογή στον κόσμο\nο ένας δίνει δουλειά στον άλλον",
+            ),
+            ("love_both", "Αγάπη και για τον πελάτη\nκαι για τον οδηγό ταξί"),
+            ("worth_it", "Γι’ αυτό αξίζει η εφαρμογή"),
+        ],
+    },
 }
 
 
@@ -181,6 +218,7 @@ def stick(
     wave: float = 0.0,
     smile: bool = False,
     walk: float = 0.0,
+    cap: bool = False,
 ) -> None:
     """Black stick person with big round Peppa-like head. cy = feet."""
     draw = ImageDraw.Draw(base)
@@ -218,6 +256,20 @@ def stick(
             fill=INK,
             width=max(4, int(5 * s)),
         )
+    if cap:
+        # little taxi-driver cap
+        draw.ellipse(
+            (cx - head_r * 0.85, head_y - head_r - 8 * s, cx + head_r * 0.85, head_y - head_r * 0.35),
+            fill=GOLD,
+            outline=INK,
+            width=max(3, int(4 * s)),
+        )
+        draw.rectangle(
+            (cx - 10 * s, head_y - head_r - 28 * s, cx + 10 * s, head_y - head_r - 4 * s),
+            fill=GOLD,
+            outline=INK,
+            width=3,
+        )
 
     rounded_line(draw, (cx, head_y + head_r - 2 * s), (cx, hip_y), thick)
     swing = math.sin(phase) * 16 if walk else 0
@@ -233,6 +285,20 @@ def stick(
     leg_swing = math.sin(phase) * 20 if walk else 0
     rounded_line(draw, (cx, hip_y), (cx - 28 * s - leg_swing * 0.3, cy), thick)
     rounded_line(draw, (cx, hip_y), (cx + 28 * s + leg_swing * 0.3, cy), thick)
+
+
+def draw_heart(base: Image.Image, cx: float, cy: float, size: float = 40, fill=(255, 110, 140)) -> None:
+    draw = ImageDraw.Draw(base)
+    s = size
+    draw.ellipse((cx - s, cy - s * 0.55, cx, cy + s * 0.45), fill=fill + (255,), outline=INK, width=4)
+    draw.ellipse((cx, cy - s * 0.55, cx + s, cy + s * 0.45), fill=fill + (255,), outline=INK, width=4)
+    draw.polygon(
+        [(cx - s, cy + s * 0.1), (cx + s, cy + s * 0.1), (cx, cy + s * 1.15)],
+        fill=fill + (255,),
+        outline=INK,
+    )
+    # cover the inner seams
+    draw.ellipse((cx - s * 0.75, cy - s * 0.2, cx + s * 0.75, cy + s * 0.55), fill=fill + (255,))
 
 
 def house(base: Image.Image, x: float, y: float, w: float = 380, h: float = 310) -> None:
@@ -597,6 +663,235 @@ def scene_drive(local: float, dur: float, line: str) -> Image.Image:
     return img
 
 
+def scene_new_app(local: float, dur: float, line: str) -> Image.Image:
+    """Big phone + Greek flag badge — brand new Greek app."""
+    img = sky_bg()
+    peppa_hills(img)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
+    bob = math.sin(local * 2.4) * 6
+    phone(img, W / 2, 780 + bob, lit=True, bounce=0)
+    # Greek-ish badge on phone
+    draw.rounded_rectangle((W / 2 - 70, 700 + bob, W / 2 + 70, 820 + bob), radius=18, fill=(0, 120, 80), outline=INK, width=5)
+    draw.ellipse((W / 2 - 28, 730 + bob, W / 2 + 28, 786 + bob), fill=WHITE, outline=INK, width=4)
+    f = ImageFont.truetype(FONT, 28)
+    t = "ΝΕΑ"
+    tw = draw.textlength(t, font=f)
+    draw.text((W / 2 - tw / 2, 850 + bob), t, font=f, fill=INK)
+    # sparkles
+    for i, (ox, oy) in enumerate(((-160, -40), (150, -80), (-120, 80), (170, 40))):
+        pulse = 0.5 + 0.5 * math.sin(local * 5 + i)
+        r = 8 + 6 * pulse
+        draw.ellipse((W / 2 + ox - r, 780 + bob + oy - r, W / 2 + ox + r, 780 + bob + oy + r), fill=GOLD, outline=INK, width=3)
+    stick(img, W / 2, 1580, scale=1.2, smile=True, wave=0.4)
+    caption(img, line)
+    return img
+
+
+def scene_serve_easy(local: float, dur: float, line: str) -> Image.Image:
+    """Happy customer + professional taxi driver — easy professional service."""
+    img = sky_bg()
+    peppa_hills(img)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
+    for fx, fy in ((100, 1500), (240, 1560), (900, 1520)):
+        draw.ellipse((fx, fy, fx + 24, fy + 24), fill=(255, 140, 180), outline=INK, width=3)
+    taxi_car(img, 200, 1520, scale=1.05, wheel_spin=0)
+    stick(img, 620, 1520, scale=1.2, smile=True, wave=0.2)
+    suitcase(img, 680, 1440, scale=1.0)
+    stick(img, 860, 1520, scale=1.25, smile=True, cap=True, wave=0.5)
+    # handshake spark between them
+    hx = 740
+    pulse = 0.5 + 0.5 * math.sin(local * 4)
+    draw.ellipse((hx - 18 * pulse, 1280, hx + 18 * pulse, 1316), fill=GOLD, outline=INK, width=3)
+    caption(img, line)
+    return img
+
+
+def scene_feedback(local: float, dur: float, line: str) -> Image.Image:
+    """Customer reviews / stars flowing into the app."""
+    img = room_bg()
+    draw = ImageDraw.Draw(img)
+    phone(img, 720, 780, lit=True, bounce=math.sin(local * 2) * 4)
+    stick(img, 320, 1500, scale=1.25, smile=True, wave=0.3)
+    # stars flying toward phone
+    for i in range(5):
+        k = (local * 0.55 + i * 0.18) % 1.0
+        x = lerp(380, 680, k)
+        y = lerp(1200, 760, k) + math.sin(local * 3 + i) * 20
+        r = 16 + 6 * math.sin(local * 6 + i)
+        # simple 4-point star
+        draw.polygon(
+            [(x, y - r), (x + r * 0.35, y - r * 0.2), (x + r, y), (x + r * 0.35, y + r * 0.2),
+             (x, y + r), (x - r * 0.35, y + r * 0.2), (x - r, y), (x - r * 0.35, y - r * 0.2)],
+            fill=GOLD,
+            outline=INK,
+        )
+    f = ImageFont.truetype(FONT, 32)
+    t = "★★★★★"
+    tw = draw.textlength(t, font=f)
+    draw.rounded_rectangle(((W - tw) / 2 - 24, 420, (W + tw) / 2 + 24, 490), radius=18, fill=CAPTION_BG, outline=INK, width=4)
+    draw.text(((W - tw) / 2, 432), t, font=f, fill=INK)
+    caption(img, line)
+    return img
+
+
+def scene_no_middleman(local: float, dur: float, line: str) -> Image.Image:
+    """Driver + taxi, middleman blocked with a big X."""
+    img = sky_bg()
+    peppa_hills(img)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
+    taxi_car(img, 180, 1520, scale=1.15, wheel_spin=local * 0.4)
+    stick(img, 620, 1520, scale=1.3, smile=True, cap=True)
+    # shady middleman bubble crossed out
+    mx, my = 860, 980
+    draw.ellipse((mx - 90, my - 90, mx + 90, my + 90), fill=(255, 200, 200), outline=INK, width=6)
+    f = ImageFont.truetype(FONT, 28)
+    t = "ΜΕΣΑΖΩΝ"
+    tw = draw.textlength(t, font=f)
+    draw.text((mx - tw / 2, my - 14), t, font=f, fill=INK)
+    # big red X
+    pulse = 0.85 + 0.15 * math.sin(local * 6)
+    draw.line((mx - 70 * pulse, my - 70 * pulse, mx + 70 * pulse, my + 70 * pulse), fill=(220, 50, 60), width=12)
+    draw.line((mx + 70 * pulse, my - 70 * pulse, mx - 70 * pulse, my + 70 * pulse), fill=(220, 50, 60), width=12)
+    caption(img, line)
+    return img
+
+
+def scene_driver_free(local: float, dur: float, line: str) -> Image.Image:
+    """Proud driver — nobody decides / nobody takes his share."""
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1200, W, H), fill=(180, 185, 190, 255))
+    draw.rectangle((0, 1200, W, 1240), fill=GOLD)
+    stick(img, W / 2, 1550, scale=1.45, smile=True, cap=True, wave=0.35)
+    # shield with 100%
+    sx, sy = W / 2, 780
+    pulse = 1.0 + 0.04 * math.sin(local * 3)
+    draw.ellipse((sx - 120 * pulse, sy - 130 * pulse, sx + 120 * pulse, sy + 110 * pulse), fill=(80, 200, 120), outline=INK, width=7)
+    f = ImageFont.truetype(FONT, 52)
+    t = "100%"
+    tw = draw.textlength(t, font=f)
+    draw.text((sx - tw / 2, sy - 30), t, font=f, fill=WHITE)
+    fs = ImageFont.truetype(FONT, 26)
+    t2 = "δικό του"
+    tw2 = draw.textlength(t2, font=fs)
+    draw.text((sx - tw2 / 2, sy + 30), t2, font=fs, fill=WHITE)
+    # floating X chips: αποφασίζει / κόβει
+    for i, (label, x) in enumerate((("όχι αποφάσεις", 180), ("όχι κοψίματα", 860))):
+        bob = math.sin(local * 3 + i) * 8
+        fb = ImageFont.truetype(FONT, 24)
+        lw = draw.textlength(label, font=fb)
+        draw.rounded_rectangle(
+            (x - lw / 2 - 18, 980 + bob, x + lw / 2 + 18, 1040 + bob),
+            radius=16,
+            fill=(255, 170, 170),
+            outline=INK,
+            width=4,
+        )
+        draw.text((x - lw / 2, 992 + bob), label, font=fb, fill=INK)
+    caption(img, line)
+    return img
+
+
+def scene_drivers_unite(local: float, dur: float, line: str) -> Image.Image:
+    """Circle of professional taxi drivers uniting."""
+    img = sky_bg()
+    peppa_hills(img)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
+    # soft gold ring under them
+    ring = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(ring).ellipse((140, 1280, 940, 1680), fill=(255, 230, 120, 90), outline=GOLD + (180,))
+    img.alpha_composite(ring)
+    positions = (220, 400, 540, 700, 880)
+    for i, x in enumerate(positions):
+        stick(img, x, 1520 + (i % 2) * 16, scale=1.05, smile=True, cap=True, wave=0.2 + 0.1 * math.sin(local * 2 + i))
+    # phones in the middle glowing
+    phone(img, W / 2, 980, lit=True, bounce=math.sin(local * 3) * 5)
+    for i in range(4):
+        ang = local * 1.2 + i * (math.pi / 2)
+        r = 110
+        hx, hy = W / 2 + math.cos(ang) * r, 980 + math.sin(ang) * r * 0.55
+        draw_heart(img, hx, hy, size=18 + 4 * math.sin(local * 4 + i), fill=(255, 120, 150))
+    caption(img, line)
+    return img
+
+
+def scene_share_work(local: float, dur: float, line: str) -> Image.Image:
+    """Drivers share the app with people — jobs flow between them."""
+    img = sky_bg()
+    peppa_hills(img)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
+    # driver left showing phone to customers
+    stick(img, 220, 1520, scale=1.2, smile=True, cap=True, wave=0.4)
+    phone(img, 340, 1180, lit=True, bounce=math.sin(local * 3) * 4)
+    # people learning about the app
+    stick(img, 520, 1520, scale=1.05, smile=True)
+    stick(img, 680, 1520, scale=1.05, smile=True, wave=0.2)
+    # other driver receiving work
+    stick(img, 900, 1520, scale=1.2, smile=True, cap=True)
+    taxi_car(img, 780, 1680, scale=0.7, wheel_spin=local)
+    # job arrows / gold chips flying left → right
+    for i in range(3):
+        k = (local * 0.4 + i * 0.33) % 1.0
+        x = lerp(360, 820, k)
+        y = 1050 + math.sin(k * math.pi) * -40
+        draw.rounded_rectangle((x - 40, y - 22, x + 40, y + 22), radius=14, fill=GOLD, outline=INK, width=3)
+        fs = ImageFont.truetype(FONT, 18)
+        lab = "δουλειά"
+        lw = draw.textlength(lab, font=fs)
+        draw.text((x - lw / 2, y - 10), lab, font=fs, fill=INK)
+    caption(img, line)
+    return img
+
+
+def scene_love_both(local: float, dur: float, line: str) -> Image.Image:
+    """Big heart between customer and taxi driver."""
+    img = sky_bg()
+    peppa_hills(img)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
+    stick(img, 260, 1520, scale=1.35, smile=True, wave=0.25)
+    suitcase(img, 320, 1440, scale=1.0)
+    stick(img, 820, 1520, scale=1.35, smile=True, cap=True, wave=0.35)
+    taxi_car(img, 620, 1680, scale=0.75, wheel_spin=0)
+    # giant pulsing heart
+    pulse = 1.0 + 0.08 * math.sin(local * 4)
+    draw_heart(img, W / 2, 900, size=90 * pulse, fill=(255, 100, 140))
+    # tiny hearts
+    for i, (ox, oy) in enumerate(((-180, -60), (180, -40), (0, -160))):
+        draw_heart(img, W / 2 + ox, 900 + oy, size=22 + 4 * math.sin(local * 3 + i), fill=(255, 150, 180))
+    caption(img, line)
+    return img
+
+
+def scene_worth_it(local: float, dur: float, line: str) -> Image.Image:
+    """App worth it — phone + heart + taxi glow."""
+    img = sky_bg()
+    draw = ImageDraw.Draw(img)
+    # soft sunburst
+    for i in range(12):
+        ang = i * (math.pi / 6) + local * 0.3
+        x2 = W / 2 + math.cos(ang) * 700
+        y2 = 900 + math.sin(ang) * 700
+        ray = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(ray).line([(W / 2, 900), (x2, y2)], fill=(255, 220, 100, 40), width=40)
+        img.alpha_composite(ray)
+    peppa_hills(img)
+    draw.rectangle((0, 1340, W, H), fill=GRASS)
+    bob = math.sin(local * 2.5) * 5
+    phone(img, W / 2, 820 + bob, lit=True, bounce=0)
+    draw_heart(img, W / 2, 780 + bob, size=36, fill=(255, 90, 130))
+    stick(img, 280, 1520, scale=1.15, smile=True)
+    stick(img, 800, 1520, scale=1.15, smile=True, cap=True)
+    taxi_car(img, 480, 1580, scale=1.0, wheel_spin=local * 0.8)
+    caption(img, line)
+    return img
+
+
 SCENES = {
     "start_city": scene_start_city,
     "start_airport": scene_start_airport,
@@ -604,6 +899,15 @@ SCENES = {
     "pickup_city": scene_pickup_city,
     "pickup_airport": scene_pickup_airport,
     "drive": scene_drive,
+    "new_app": scene_new_app,
+    "serve_easy": scene_serve_easy,
+    "feedback": scene_feedback,
+    "no_middleman": scene_no_middleman,
+    "driver_free": scene_driver_free,
+    "drivers_unite": scene_drivers_unite,
+    "share_work": scene_share_work,
+    "love_both": scene_love_both,
+    "worth_it": scene_worth_it,
 }
 
 
@@ -628,11 +932,11 @@ async def speak(text: str, dst: Path) -> None:
     raise RuntimeError(last)
 
 
-def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None:
+def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path, bed_vol: float = 0.20) -> None:
     ff(
         "-i", str(bed), "-i", str(sting), "-i", str(vo),
         "-filter_complex",
-        "[0:a]volume=0.20,afade=t=in:st=0:d=0.7,"
+        f"[0:a]volume={bed_vol:.2f},afade=t=in:st=0:d=0.7,"
         f"afade=t=out:st={max(total - 1.6, 0.5):.2f}:d=1.4,"
         "aformat=sample_rates=44100:channel_layouts=stereo[m];"
         "[1:a]volume=0.50,aformat=sample_rates=44100:channel_layouts=stereo[s];"
@@ -657,7 +961,7 @@ async def build_one(slug: str, copy: dict) -> Path:
     # Speak each line alone. Screen text == spoken line. Slow + simple.
     parts: list[Path] = []
     scene_durs: list[float] = []
-    hold = 0.85  # quiet beat after each line (same on video + audio)
+    hold = float(copy.get("hold", 0.85))
     for i, (scene_key, line) in enumerate(beats):
         mp3 = work / f"line_{i}.mp3"
         wav = work / f"line_{i}.wav"
@@ -723,11 +1027,15 @@ async def build_one(slug: str, copy: dict) -> Path:
 
     vlen = duration(silent)
     bed = work / "bed.wav"
-    pretty_music(vlen + 0.5, bed)
+    happy = copy.get("music") == "happy"
+    if happy:
+        reggae_music(vlen + 0.5, bed)
+    else:
+        pretty_music(vlen + 0.5, bed)
     sting = work / "sting.wav"
     logo_sting(vlen + 0.5, brand_start + 0.15, sting)
     audio = work / "mix.m4a"
-    mix_audio(vo_wav, bed, sting, vlen, audio)
+    mix_audio(vo_wav, bed, sting, vlen, audio, bed_vol=0.28 if happy else 0.20)
 
     tmp = work / "tmp.mp4"
     mix(silent, audio, tmp)
