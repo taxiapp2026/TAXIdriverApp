@@ -222,6 +222,95 @@ def drive_music(seconds: float, dst: Path) -> None:
     write_wav(dst, out * np.clip(fade, 0, 1) * 0.78)
 
 
+def hope_music(seconds: float, dst: Path) -> None:
+    """Warm hopeful bed: soft piano pulses + airy melody. Not reggae/drive."""
+    n = int(SR * seconds)
+    out = np.zeros(n)
+    bpm = 96.0
+    beat = 60.0 / bpm
+    rng = np.random.default_rng(77)
+
+    def place(buf: np.ndarray, at: float, sound: np.ndarray) -> None:
+        j0 = int(at * SR)
+        if j0 >= len(buf) or j0 < 0:
+            return
+        leng = min(len(sound), len(buf) - j0)
+        buf[j0 : j0 + leng] += sound[:leng]
+
+    # F – C – Dm – Bb (warm major lift)
+    chords = [
+        (174.61, (349.23, 440.00, 523.25)),
+        (130.81, (261.63, 329.63, 392.00)),
+        (146.83, (293.66, 349.23, 440.00)),
+        (116.54, (233.08, 293.66, 349.23)),
+    ]
+    bars = int(seconds / (beat * 4)) + 2
+    for b in range(bars):
+        t0 = b * beat * 4
+        if t0 >= seconds:
+            break
+        root, chord = chords[b % len(chords)]
+
+        # soft string pad
+        hold = min(beat * 4.1, seconds - t0 + 0.05)
+        if hold > 0.05:
+            tt = np.linspace(0, hold, int(hold * SR), False)
+            shape = np.minimum(tt / 0.25, 1.0) * np.minimum((hold - tt) / 0.35, 1.0)
+            pad = sum(0.034 * np.sin(2 * math.pi * f * tt) for f in chord)
+            pad += 0.020 * np.sin(2 * math.pi * root * tt)
+            place(out, t0, pad * np.clip(shape, 0, 1))
+
+        # piano-like pulses on beats 1 and 3
+        for k in (0, 2):
+            at = t0 + k * beat
+            tt = np.linspace(0, 0.55, int(0.55 * SR), False)
+            tone = sum(0.07 * np.sin(2 * math.pi * f * tt) for f in chord)
+            tone += 0.03 * np.sin(2 * math.pi * chord[0] * 2 * tt)
+            tone *= np.exp(-3.8 * tt) * np.minimum(tt / 0.008, 1.0)
+            place(out, at, tone)
+
+        # light high sparkle every half bar
+        for k in range(4):
+            at = t0 + k * beat + beat * 0.5
+            tt = np.linspace(0, 0.18, int(0.18 * SR), False)
+            spark = 0.028 * np.sin(2 * math.pi * chord[2] * 2 * tt) * np.exp(-18 * tt)
+            place(out, at, spark)
+
+        # soft kick (quiet, not clubby)
+        tt = np.linspace(0, 0.25, int(0.25 * SR), False)
+        kick = 0.16 * np.sin(2 * math.pi * (55 + 40 * np.exp(-28 * tt)) * tt) * np.exp(-9 * tt)
+        place(out, t0, kick)
+        place(out, t0 + 2 * beat, kick * 0.85)
+
+        # airy hats
+        for k in range(8):
+            tt = np.linspace(0, 0.05, int(0.05 * SR), False)
+            noise = rng.normal(0, 1, len(tt))
+            hat = 0.022 * (noise - np.convolve(noise, np.ones(6) / 6, mode="same")) * np.exp(-60 * tt)
+            place(out, t0 + k * beat / 2, hat * (0.55 if k % 2 == 0 else 1.0))
+
+    # floating melody line
+    melody = [399.23, 440.00, 523.25, 440.00, 349.23, 392.00, 440.00, 523.25]
+    step = beat
+    for i, f0 in enumerate(melody * (int(seconds / (step * len(melody))) + 1)):
+        t0 = 0.6 + i * step
+        if t0 >= seconds - 0.3:
+            break
+        leng = int(0.7 * SR)
+        j0 = int(t0 * SR)
+        if j0 >= n:
+            break
+        tt = np.linspace(0, 0.7, leng, False)
+        mel = 0.045 * np.sin(2 * math.pi * f0 * tt) * np.exp(-2.2 * tt)
+        mel += 0.015 * np.sin(2 * math.pi * f0 * 2 * tt) * np.exp(-3.5 * tt)
+        sl = slice(j0, min(j0 + leng, n))
+        out[sl] += mel[: sl.stop - sl.start]
+
+    t = np.linspace(0, seconds, n, False)
+    fade = np.minimum(np.minimum(t / 1.0, 1.0), np.minimum((seconds - t) / 1.8, 1.0))
+    write_wav(dst, out * np.clip(fade, 0, 1) * 0.82)
+
+
 def plain_music(seconds: float, dst: Path) -> None:
     """Brighter plucked bed for the versions with no voice. Not a known song."""
     n = int(SR * seconds)
