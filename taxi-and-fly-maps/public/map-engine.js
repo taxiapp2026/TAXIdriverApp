@@ -258,8 +258,10 @@ export class TaxiMap {
       ctx.fillStyle = POI_COLOR[f.class] || "#e5e7eb";
       ctx.arc(p.x, p.y, f.class === "airport" ? 6 : 3.4, 0, Math.PI * 2);
       ctx.fill();
-      if (this.camera.zoom >= 15 && f.name) {
-        const key = `${Math.round(p.x / 48)}:${Math.round(p.y / 14)}`;
+      const important = f.class === "airport" || f.class === "hotel" || f.class === "fuel" || f.class === "taxi" || f.class === "transit";
+      const showLabel = f.name && (important ? this.camera.zoom >= 14 : this.camera.zoom >= 18);
+      if (showLabel) {
+        const key = `${Math.round(p.x / 72)}:${Math.round(p.y / 18)}`;
         if (!occupied.has(key)) {
           occupied.add(key);
           ctx.fillStyle = "rgba(12,16,24,0.7)";
