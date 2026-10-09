@@ -148,30 +148,34 @@ app.delete("/api/features/:id", (req, res) => {
 });
 
 app.get("/api/route", (req, res) => {
-  const from = String(req.query.from || "").split(",").map(Number);
-  const to = String(req.query.to || "").split(",").map(Number);
-  if (from.length !== 2 || to.length !== 2 || from.some(Number.isNaN) || to.some(Number.isNaN)) {
-    res.status(400).json({ error: "from=lng,lat&to=lng,lat" });
-    return;
+  try {
+    const from = String(req.query.from || "").split(",").map(Number);
+    const to = String(req.query.to || "").split(",").map(Number);
+    if (from.length !== 2 || to.length !== 2 || from.some(Number.isNaN) || to.some(Number.isNaN)) {
+      res.status(400).json({ error: "from=lng,lat&to=lng,lat" });
+      return;
+    }
+    const g = graphNear(from, to);
+    const a = nearestNode(g, from[0], from[1]);
+    const b = nearestNode(g, to[0], to[1]);
+    if (!a || !b) {
+      res.status(404).json({ error: "no road graph" });
+      return;
+    }
+    const pathNodes = routeAStar(g, a.key, b.key);
+    if (!pathNodes) {
+      res.status(404).json({ error: "no route" });
+      return;
+    }
+    const coordinates = pathNodes.map((n) => [n.lng, n.lat]);
+    res.json({
+      type: "Feature",
+      properties: { kind: "route", from: a, to: b },
+      geometry: { type: "LineString", coordinates },
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err.message || err) });
   }
-  const g = graphNear(from, to);
-  const a = nearestNode(g, from[0], from[1]);
-  const b = nearestNode(g, to[0], to[1]);
-  if (!a || !b) {
-    res.status(404).json({ error: "no road graph" });
-    return;
-  }
-  const pathNodes = routeAStar(g, a.key, b.key);
-  if (!pathNodes) {
-    res.status(404).json({ error: "no route" });
-    return;
-  }
-  const coordinates = pathNodes.map((n) => [n.lng, n.lat]);
-  res.json({
-    type: "Feature",
-    properties: { kind: "route", from: a, to: b },
-    geometry: { type: "LineString", coordinates },
-  });
 });
 
 app.post("/api/vision/demo", async (_req, res) => {

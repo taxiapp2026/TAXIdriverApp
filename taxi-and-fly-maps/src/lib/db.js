@@ -311,17 +311,27 @@ export function loadRoadGraph(db, bbox = null) {
         .all();
   const nodes = new Map();
   const adj = new Map();
-  const key = (lng, lat) => `${lng.toFixed(5)},${lat.toFixed(5)}`;
+  const key = (lng, lat) => `${Number(lng).toFixed(5)},${Number(lat).toFixed(5)}`;
   const ensure = (k, coord) => {
     if (!nodes.has(k)) nodes.set(k, { key: k, lng: coord[0], lat: coord[1] });
     if (!adj.has(k)) adj.set(k, []);
     return nodes.get(k);
   };
+  const asLines = (geom) => {
+    if (!geom) return [];
+    if (geom.type === "LineString") return [geom.coordinates];
+    if (geom.type === "MultiLineString") return geom.coordinates;
+    if (geom.type === "Polygon") return geom.coordinates;
+    if (geom.type === "MultiPolygon") return geom.coordinates.flat();
+    return [];
+  };
   for (const row of rows) {
     const geom = JSON.parse(row.geom);
-    const lines = geom.type === "LineString" ? [geom.coordinates] : geom.coordinates || [];
+    const lines = asLines(geom);
     for (const line of lines) {
+      if (!Array.isArray(line) || line.length < 2 || !Array.isArray(line[0])) continue;
       for (let i = 0; i < line.length - 1; i += 1) {
+        if (typeof line[i][0] !== "number" || typeof line[i + 1][0] !== "number") continue;
         const a = ensure(key(line[i][0], line[i][1]), line[i]);
         const b = ensure(key(line[i + 1][0], line[i + 1][1]), line[i + 1]);
         const dx = a.lng - b.lng;
