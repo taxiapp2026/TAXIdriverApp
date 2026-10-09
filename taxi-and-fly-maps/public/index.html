@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taxi and Fly Maps · Αττική</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="mark">TF</div>
+      <div>
+        <h1>TAXI AND FLY <span>MAPS</span></h1>
+        <div class="sub">Δικός μας χάρτης · δική μας βάση · χωρίς Google Maps API</div>
+      </div>
+      <div class="search">
+        <input id="q" type="search" placeholder="Αναζήτηση δρόμου, ξενοδοχείου, βενζινάδικου, διεύθυνσης…">
+        <button id="search-btn" type="button">Εύρεση</button>
+      </div>
+    </header>
+    <aside>
+      <div class="ok">Πηγή χαρτογραφίας: OpenStreetMap (ODbL). Ο κώδικας του renderer, της αναζήτησης και του επεξεργαστή είναι δικός μας.</div>
+      <h2>Κάλυψη βάσης</h2>
+      <div class="stat-grid">
+        <div class="stat"><b id="stat-total">—</b><span>Στοιχεία</span></div>
+        <div class="stat"><b id="stat-roads">—</b><span>Δρόμοι</span></div>
+        <div class="stat"><b id="stat-hotels">—</b><span>Ξενοδοχεία</span></div>
+        <div class="stat"><b id="stat-fuel">—</b><span>Καύσιμα</span></div>
+        <div class="stat"><b id="stat-shops">—</b><span>Καταστήματα</span></div>
+        <div class="stat"><b id="stat-addr">—</b><span>Διευθύνσεις</span></div>
+      </div>
+      <p class="kind" id="source-line"></p>
+      <h2>Μετάβαση</h2>
+      <div class="toolbar">
+        <button class="ghost" id="go-center" type="button">Σύνταγμα</button>
+        <button class="ghost" id="go-piraeus" type="button">Πειραιάς</button>
+        <button class="ghost" id="go-airport" type="button">Αεροδρόμιο</button>
+      </div>
+      <h2>Επίπεδα</h2>
+      <div class="filters">
+        <label><input data-filter type="checkbox" value="road" checked> Δρόμοι</label>
+        <label><input data-filter type="checkbox" value="poi" checked> POI</label>
+        <label><input data-filter type="checkbox" value="water" checked> Νερά</label>
+        <label><input data-filter type="checkbox" value="park" checked> Πάρκα</label>
+        <label><input data-filter type="checkbox" value="rail" checked> Σιδηρόδρομος</label>
+        <label><input data-filter type="checkbox" value="address" checked> Διευθύνσεις</label>
+      </div>
+      <h2>Σημεία</h2>
+      <div class="filters">
+        <label><input data-poi type="checkbox" value="hotel" checked> Ξενοδοχεία</label>
+        <label><input data-poi type="checkbox" value="fuel" checked> Βενζινάδικα</label>
+        <label><input data-poi type="checkbox" value="shop" checked> Καταστήματα</label>
+        <label><input data-poi type="checkbox" value="airport" checked> Αεροδρόμιο</label>
+        <label><input data-poi type="checkbox" value="transit" checked> Μεταφορές</label>
+        <label><input data-poi type="checkbox" value="taxi" checked> Πιάτσες</label>
+        <label><input data-poi type="checkbox" value="food" checked> Εστίαση</label>
+        <label><input data-poi type="checkbox" value="health" checked> Υγεία</label>
+      </div>
+      <h2>Αναζήτηση</h2>
+      <div id="results" class="results"></div>
+      <h2>Επεξεργασία</h2>
+      <input id="new-name" type="text" placeholder="Όνομα νέου στοιχείου">
+      <select id="new-class" style="width:100%;margin:8px 0;background:#0c1018;color:#e8eef7;border-radius:8px;padding:8px;border:1px solid rgba(245,197,24,.18)">
+        <option value="taxi">Πιάτσα / σημείο Taxi and Fly</option>
+        <option value="hotel">Ξενοδοχείο</option>
+        <option value="fuel">Βενζινάδικο</option>
+        <option value="shop">Κατάστημα</option>
+      </select>
+      <div class="toolbar">
+        <button id="add-poi" type="button">Προσθήκη στο κέντρο</button>
+        <button class="ghost" id="draw-road" type="button">Σχεδίαση δρόμου</button>
+      </div>
+      <p class="kind" id="route-status"></p>
+      <h2>Επιλογή</h2>
+      <div id="detail" class="detail"><div class="kind">Κλικ σε δρόμο ή σημείο.</div></div>
+      <h2>Screen-to-Code</h2>
+      <p class="kind">Εργαστήριο όρασης υπολογιστή για σκίτσα και αδειοδοτημένες εικόνες — όχι Google Maps.</p>
+      <a href="/vision.html" style="color:#22d3ee">Άνοιγμα εργαστηρίου όρασης</a>
+      <div class="warn" style="margin-top:14px">Δεν βλέπω την οθόνη του υπολογιστή σου. Ο έλεγχος οθόνης του Cursor ισχύει μόνο για αυτό το περιβάλλον (VM) για δοκιμή του πρωτότυπου.</div>
+    </aside>
+    <div class="stage">
+      <canvas id="map"></canvas>
+      <div class="hud">
+        <div class="zoom-btns">
+          <button id="zoom-in" type="button">+</button>
+          <button id="zoom-out" type="button">−</button>
+        </div>
+        <div class="card">
+          <div id="coords">—</div>
+          <div class="kind">Κλίμακα 80px ≈ <span id="scale">—</span> · ορατά <span id="visible">0</span></div>
+        </div>
+      </div>
+      <div class="attrib">© OpenStreetMap contributors · ODbL · Taxi and Fly Maps renderer (όχι Google)</div>
+    </div>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

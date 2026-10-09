@@ -1,0 +1,12 @@
+node_modules/
+data/*.pbf
+data/*.osm
+data/*.osm.pbf
+data/*.geojson
+data/*.geojsonl
+data/*.sqlite
+data/*.sqlite-*
+data/tmp/
+*.log
+.DS_Store
+uploads/
