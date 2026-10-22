@@ -108,6 +108,7 @@ VARIANTS = {
         "brand_lines": ["Από και προς το αεροδρόμιο"],
         "brand_spoken": "Από και προς το αεροδρόμιο.",
         "hold": 1.4,
+        "holds": [2.0, 1.2],  # longer pause after brand name
         "rate": "-10%",
         "brand_tail": 1.2,
         "brand_extra": 1.4,
@@ -286,9 +287,11 @@ async def build_one(slug: str, copy: dict) -> Path:
 
     parts: list[Path] = []
     scene_durs: list[float] = []
-    hold = float(copy.get("hold", HOLD))
+    hold_default = float(copy.get("hold", HOLD))
+    holds = list(copy.get("holds") or [])
     rate = str(copy.get("rate", RATE))
     for i, line in enumerate(lines):
+        hold = float(holds[i]) if i < len(holds) else hold_default
         mp3 = work / f"line_{i}.mp3"
         wav = work / f"line_{i}.wav"
         await speak(line.replace("\n", " ") + ".", mp3, rate=rate)
@@ -298,7 +301,7 @@ async def build_one(slug: str, copy: dict) -> Path:
         d = duration(wav) + hold
         scene_durs.append(d)
         parts.extend([wav, pad])
-        print(f"[text-{slug}] {i + 1}: «{line.replace(chr(10), ' ')}» {d:.2f}s")
+        print(f"[text-{slug}] {i + 1}: «{line.replace(chr(10), ' ')}» {d:.2f}s (hold {hold:.2f})")
 
     brand_mp3 = work / "brand.mp3"
     brand_wav = work / "brand.wav"
