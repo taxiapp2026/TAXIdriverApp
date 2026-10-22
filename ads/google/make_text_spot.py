@@ -95,9 +95,26 @@ VARIANTS = {
         "brand_extra": 0.5,
         "music": "plain",
         "lines": [
-            "Ασφάλεια για ηλικιωμένους",
+            "Εύκολα για ηλικιωμένους",
             "Αξιοπιστία για επαγγελματίες",
             "Από και προς το αεροδρόμιο",
+        ],
+    },
+    # Simple beautiful tagline ~15s
+    "aksiopistia": {
+        "out": ROOT / "taxi-and-fly-text-aksiopistia.mp4",
+        "art": "taxi_and_fly_text_aksiopistia.mp4",
+        "download": "text-aksiopistia.mp4",
+        "brand_lines": ["Από και προς το αεροδρόμιο"],
+        "brand_spoken": "Από και προς το αεροδρόμιο.",
+        "hold": 1.4,
+        "rate": "-10%",
+        "brand_tail": 1.2,
+        "brand_extra": 1.4,
+        "music": "plain",
+        "lines": [
+            "Taxi and Fly",
+            "Αξιοπιστία στις διαδρομές σου",
         ],
     },
 }
