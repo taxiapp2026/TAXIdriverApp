@@ -107,11 +107,11 @@ VARIANTS = {
         "download": "text-aksiopistia.mp4",
         "brand_lines": ["Από και προς το αεροδρόμιο"],
         "brand_spoken": "Από και προς το αεροδρόμιο.",
-        "hold": 1.2,
-        "holds": [2.4, 1.3],  # clear pause after «Taxi and Fly»
-        "rate": "-10%",
-        "brand_tail": 1.3,
-        "brand_extra": 1.5,
+        "hold": 0.9,
+        "holds": [1.15, 0.9],  # shorter pause after «Taxi and Fly»
+        "rate": "-6%",
+        "brand_tail": 1.0,
+        "brand_extra": 1.1,
         "music": "plain",
         "lines": [
             "Taxi and Fly",
