@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Fast text spot for drivers: Taxi and Fly — Η δύναμη είσαι εσύ.
+"""Driver spot with real flow: Taxi and Fly — Η δύναμη είσαι εσύ.
 
-Serious black/gold typography + natural VO + hope music. No cartoons.
-Addressed to taxi drivers: you are the power of Taxi and Fly.
+One continuous thought for drivers. Text builds on screen (no hard card cuts).
+Natural VO + hope music. No cartoons.
 """
 
 from __future__ import annotations
@@ -35,15 +35,16 @@ SOFT = (190, 190, 190)
 BG = (8, 8, 8, 255)
 APP_URL = "taxiapp2026.github.io/taxi-client-app"
 VOICE = "el-GR-NestorasNeural"
-RATE = "+5%"  # fast, punchy
+RATE = "-4%"  # natural flow, not rushed chops
 
-# Driver-facing: call out → their slogan → brand
-LINES = [
-    "Οδηγέ",
-    "Η δύναμη είσαι εσύ",
-    "Taxi and Fly",
+# One arc for drivers — spoken continuously, text builds in place
+BEATS = [
+    # (spoken, lines visible so far, hold after VO)
+    ("Οδηγέ ταξί.", ["Οδηγέ ταξί"], 0.25),
+    ("Στην Taxi and Fly,", ["Οδηγέ ταξί", "στην Taxi and Fly"], 0.20),
+    ("η δύναμη είσαι εσύ.", ["Οδηγέ ταξί", "στην Taxi and Fly", "Η δύναμη είσαι εσύ"], 1.15),
 ]
-HOLDS = [0.30, 0.70, 0.40]
+BRAND_TAIL = 1.6
 
 
 def ease(k: float) -> float:
@@ -54,7 +55,7 @@ def ease(k: float) -> float:
 def glow_layer() -> Image.Image:
     yy, xx = np.mgrid[0:H, 0:W]
     d = np.sqrt(((xx - W / 2) / 540.0) ** 2 + ((yy - H * 0.42) / 720.0) ** 2)
-    a = np.clip(1.0 - d, 0.0, 1.0) ** 2.2 * 90.0
+    a = np.clip(1.0 - d, 0.0, 1.0) ** 2.2 * 95.0
     rgba = np.zeros((H, W, 4), dtype=np.uint8)
     rgba[..., 0], rgba[..., 1], rgba[..., 2] = GOLD
     rgba[..., 3] = a.astype(np.uint8)
@@ -86,50 +87,63 @@ def badge_image() -> Image.Image:
 
 def background(t: float) -> Image.Image:
     img = Image.new("RGBA", (W, H), BG)
-    drift = int(18 * math.sin(t * 0.45))
+    drift = int(14 * math.sin(t * 0.4))
     img.alpha_composite(GLOW, (0, drift))
     return img
 
 
-def fit_block(draw: ImageDraw.ImageDraw, text: str, max_w: float = 920, start: int = 64):
-    lines = [ln.strip() for ln in text.split("\n") if ln.strip()] or [text]
-    for size in range(start, 28, -2):
-        f = ImageFont.truetype(FONT, size)
-        if all(draw.textlength(ln, font=f) <= max_w for ln in lines):
-            return f, lines, int(size + 16)
-    f = ImageFont.truetype(FONT, 28)
-    return f, lines, 42
-
-
-def text_frame(t: float, local: float, line: str, index: int) -> Image.Image:
+def story_frame(t: float, local: float, visible: list[str], newest: int) -> Image.Image:
+    """All visible lines stay on screen; newest line eases in — continuous flow."""
     img = background(t)
     draw = ImageDraw.Draw(img)
-    total = len(LINES)
+
+    # progress
+    total = len(BEATS)
     for i in range(total):
         cx = W / 2 - (total - 1) * 16 + i * 32
-        r = 6 if i == index else 3
-        fill = GOLD if i <= index else (70, 70, 70)
-        draw.ellipse((cx - r, 160 - r, cx + r, 160 + r), fill=fill + (255,))
+        r = 6 if i == newest else 3
+        fill = GOLD if i <= newest else (70, 70, 70)
+        draw.ellipse((cx - r, 150 - r, cx + r, 150 + r), fill=fill + (255,))
 
-    fade = ease(min(local / 0.35, 1.0))
-    rise = (1 - fade) * 22
-    # Slogan (index 1) is the gold hero; others white
-    start_size = 76 if index == 1 else (68 if index == 0 else 64)
-    f, lines, line_h = fit_block(draw, line, start=start_size)
-    block_h = len(lines) * line_h
-    top = H / 2 - block_h / 2 - 40 + rise
-    color = GOLD if index == 1 else WHITE
-    for i, ln in enumerate(lines):
+    # Typography: stacked block, last line gold + larger
+    sized: list[tuple[ImageFont.FreeTypeFont, str, tuple[int, int, int], float]] = []
+    for i, ln in enumerate(visible):
+        is_punch = i == len(visible) - 1 and newest == len(BEATS) - 1
+        is_new = i == len(visible) - 1
+        size = 70 if is_punch else (52 if i == 0 else 48)
+        # shrink if needed
+        f = ImageFont.truetype(FONT, size)
+        while draw.textlength(ln, font=f) > 940 and size > 30:
+            size -= 2
+            f = ImageFont.truetype(FONT, size)
+        color = GOLD if is_punch else WHITE
+        alpha = ease(min(local / 0.32, 1.0)) if is_new else 1.0
+        sized.append((f, ln, color, alpha))
+
+    line_gap = 22
+    heights = [int(getattr(f, "size", 48) + line_gap) for f, *_ in sized]
+    block_h = sum(heights)
+    # slight rise only for newest
+    rise = (1 - sized[-1][3]) * 18 if sized else 0
+    top = H / 2 - block_h / 2 - 20 + rise
+
+    y = top
+    for (f, ln, color, alpha), h in zip(sized, heights):
         tw = draw.textlength(ln, font=f)
-        draw.text(((W - tw) / 2, top + i * line_h), ln, font=f, fill=color + (int(255 * fade),))
-    bar_w = (300 if index == 1 else 180) * fade
-    bar_y = top + block_h + 40
-    if bar_w > 2:
-        draw.rounded_rectangle(
-            (W / 2 - bar_w / 2, bar_y, W / 2 + bar_w / 2, bar_y + 7),
-            radius=4,
-            fill=GOLD + (int(230 * fade),),
-        )
+        draw.text(((W - tw) / 2, y), ln, font=f, fill=color + (int(255 * alpha),))
+        y += h
+
+    # gold underline under punch when complete
+    if newest == len(BEATS) - 1 and sized:
+        fade = sized[-1][3]
+        bar_w = 280 * fade
+        bar_y = y + 8
+        if bar_w > 2:
+            draw.rounded_rectangle(
+                (W / 2 - bar_w / 2, bar_y, W / 2 + bar_w / 2, bar_y + 7),
+                radius=4,
+                fill=GOLD + (int(230 * fade),),
+            )
     return img
 
 
@@ -137,24 +151,29 @@ def brand_frame(t: float, start: float) -> Image.Image:
     img = background(t)
     draw = ImageDraw.Draw(img)
     since = max(t - start, 0.0)
-    k = ease(min(since / 0.5, 1.0))
+    k = ease(min(since / 0.55, 1.0))
     mark = badge_image()
-    size = int(520 * (0.92 + 0.08 * k))
+    size = int(500 * (0.92 + 0.08 * k))
     mark = mark.resize((size, size), Image.Resampling.LANCZOS)
-    img.alpha_composite(mark, ((W - size) // 2, 400))
+    img.alpha_composite(mark, ((W - size) // 2, 420))
 
-    f_brand = ImageFont.truetype(FONT, 72)
-    f_line = ImageFont.truetype(FONT_REG, 38)
+    f_brand = ImageFont.truetype(FONT, 70)
+    f_line = ImageFont.truetype(FONT_REG, 36)
     f_url = ImageFont.truetype(FONT_REG, 26)
-    fade = ease(min(max((since - 0.15) / 0.4, 0.0), 1.0))
+    fade = ease(min(max((since - 0.12) / 0.4, 0.0), 1.0))
     bw = draw.textlength("Taxi and Fly", font=f_brand)
     draw.text(((W - bw) / 2, 980), "Taxi and Fly", font=f_brand, fill=GOLD + (255,))
     line = "Από και προς το αεροδρόμιο"
     tw = draw.textlength(line, font=f_line)
-    draw.text(((W - tw) / 2, 1090), line, font=f_line, fill=WHITE + (int(245 * fade),))
+    draw.text(((W - tw) / 2, 1085), line, font=f_line, fill=WHITE + (int(245 * fade),))
     uw = draw.textlength(APP_URL, font=f_url)
-    draw.text(((W - uw) / 2, 1185), APP_URL, font=f_url, fill=SOFT + (int(220 * fade),))
+    draw.text(((W - uw) / 2, 1175), APP_URL, font=f_url, fill=SOFT + (int(220 * fade),))
     return img
+
+
+def blend(a: Image.Image, b: Image.Image, k: float) -> Image.Image:
+    k = max(0.0, min(k, 1.0))
+    return Image.blend(a.convert("RGB"), b.convert("RGB"), k).convert("RGBA")
 
 
 async def speak(text: str, dst: Path, rate: str = RATE) -> None:
@@ -182,13 +201,13 @@ def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None
     ff(
         "-i", str(bed), "-i", str(sting), "-i", str(vo),
         "-filter_complex",
-        "[0:a]volume=0.17,afade=t=in:st=0:d=0.4,"
-        f"afade=t=out:st={max(total - 1.2, 0.4):.2f}:d=1.0,"
+        "[0:a]volume=0.16,afade=t=in:st=0:d=0.5,"
+        f"afade=t=out:st={max(total - 1.3, 0.4):.2f}:d=1.1,"
         "aformat=sample_rates=44100:channel_layouts=stereo[m];"
-        "[1:a]volume=0.40,aformat=sample_rates=44100:channel_layouts=stereo[s];"
-        "[2:a]highpass=f=90,equalizer=f=220:t=q:w=1:g=1.2,equalizer=f=2800:t=q:w=1:g=1.1,"
+        "[1:a]volume=0.38,aformat=sample_rates=44100:channel_layouts=stereo[s];"
+        "[2:a]highpass=f=90,equalizer=f=220:t=q:w=1:g=1.15,equalizer=f=2800:t=q:w=1:g=1.05,"
         "acompressor=threshold=-18dB:ratio=1.5:attack=10:release=100,"
-        "aformat=sample_rates=44100:channel_layouts=stereo,volume=1.15,"
+        "aformat=sample_rates=44100:channel_layouts=stereo,volume=1.12,"
         "apad=pad_dur=0.8[v];"
         "[m][s][v]amix=inputs=3:duration=longest:dropout_transition=0:normalize=0,"
         "loudnorm=I=-14:TP=-1.0:LRA=11,"
@@ -205,27 +224,21 @@ async def build() -> Path:
 
     parts: list[Path] = []
     scene_durs: list[float] = []
-    for i, line in enumerate(LINES):
+    for i, (spoken, _visible, hold) in enumerate(BEATS):
         mp3 = work / f"line_{i}.mp3"
         wav = work / f"line_{i}.wav"
-        spoken = line.replace("\n", " ")
-        if not spoken.endswith("."):
-            spoken += "."
         await speak(spoken, mp3)
         ff("-i", str(mp3), "-ac", "1", "-ar", "44100", str(wav))
-        hold = HOLDS[i] if i < len(HOLDS) else 0.8
         pad = work / f"line_{i}_pad.wav"
         ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{hold:.3f}", str(pad))
         d = duration(wav) + hold
         scene_durs.append(d)
         parts.extend([wav, pad])
-        print(f"[dynami] {i}: «{line}» {d:.2f}s")
+        print(f"[dynami] {i}: «{spoken}» {d:.2f}s")
 
-    # Silent end card only — slogan already landed; keep it short
     brand_pad = work / "brand_pad.wav"
-    brand_tail = 1.35
-    ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{brand_tail:.3f}", str(brand_pad))
-    brand_dur = brand_tail
+    ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{BRAND_TAIL:.3f}", str(brand_pad))
+    brand_dur = BRAND_TAIL
     parts.append(brand_pad)
 
     lst = work / "vo_join.txt"
@@ -238,18 +251,42 @@ async def build() -> Path:
     total = story_dur + brand_dur
     print(f"[dynami] total {total:.2f}s")
 
+    # Pre-render scene stills, then crossfade between them for flow
+    stills: list[Image.Image] = []
+    for i, (_spoken, visible, _hold) in enumerate(BEATS):
+        # settle frame (fully visible newest line)
+        stills.append(story_frame(sum(scene_durs[: i + 1]), 1.0, visible, i))
+
     frames = work / "frames"
     frames.mkdir(parents=True)
     idx = 0
-    for i, (line, seconds) in enumerate(zip(LINES, scene_durs)):
+    xfade = 0.38  # seconds of soft blend into next beat
+
+    for i, seconds in enumerate(scene_durs):
         n = int(round(seconds * FPS))
         for j in range(n):
-            img = text_frame(idx / FPS, j / FPS, line, i)
-            img.convert("RGB").save(frames / f"{idx:05d}.png")
+            local = j / FPS
+            t = idx / FPS
+            visible = BEATS[i][1]
+            base = story_frame(t, local, visible, i)
+            # near end of beat, blend toward next still (or brand)
+            remaining = seconds - local
+            if remaining < xfade and i < len(stills) - 1:
+                k = ease(1.0 - remaining / xfade)
+                nxt = story_frame(t, 0.0, BEATS[i + 1][1], i + 1)
+                # keep previous lines; newest of next at alpha via blend
+                base = blend(base, nxt, k * 0.85)
+            elif remaining < xfade and i == len(stills) - 1:
+                k = ease(1.0 - remaining / xfade)
+                nxt = brand_frame(brand_start, brand_start)
+                base = blend(base, nxt, k * 0.7)
+            base.convert("RGB").save(frames / f"{idx:05d}.png")
             idx += 1
+
     need = int(round(total * FPS))
     while idx < need:
         img = brand_frame(idx / FPS, brand_start)
+        # soft entry already blended; keep easing badge
         img.convert("RGB").save(frames / f"{idx:05d}.png")
         idx += 1
 
@@ -268,7 +305,7 @@ async def build() -> Path:
     bed = work / "bed.wav"
     hope_music(vlen + 0.4, bed)
     sting = work / "sting.wav"
-    logo_sting(vlen + 0.4, brand_start + 0.08, sting)
+    logo_sting(vlen + 0.4, brand_start + 0.1, sting)
     audio = work / "mix.m4a"
     mix_audio(vo_wav, bed, sting, vlen, audio)
 
