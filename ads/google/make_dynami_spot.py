@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""15s text spot: Taxi and Fly — Η δύναμη είσαι εσύ.
+"""Fast text spot for drivers: Taxi and Fly — Η δύναμη είσαι εσύ.
 
 Serious black/gold typography + natural VO + hope music. No cartoons.
+Addressed to taxi drivers: you are the power of Taxi and Fly.
 """
 
 from __future__ import annotations
@@ -34,16 +35,15 @@ SOFT = (190, 190, 190)
 BG = (8, 8, 8, 255)
 APP_URL = "taxiapp2026.github.io/taxi-client-app"
 VOICE = "el-GR-NestorasNeural"
-RATE = "-6%"
+RATE = "+2%"  # snappy for drivers
 
-# ~15s story: brand → meaning → punch → end card
+# Driver-facing: brand → you, driver → you are the power → end
 LINES = [
     "Taxi and Fly",
-    "Για κάθε διαδρομή σου",
+    "Οδηγέ ταξί",
     "Η δύναμη είσαι εσύ",
 ]
-# Pause after each line (shorter after brand, longer on punch)
-HOLDS = [0.85, 0.75, 1.35]
+HOLDS = [0.45, 0.35, 0.85]
 
 
 def ease(k: float) -> float:
@@ -113,8 +113,8 @@ def text_frame(t: float, local: float, line: str, index: int) -> Image.Image:
 
     fade = ease(min(local / 0.35, 1.0))
     rise = (1 - fade) * 22
-    # Punch line a bit larger
-    start_size = 72 if index == 2 else 58
+    # Punch line larger; driver address solid white
+    start_size = 72 if index == 2 else (62 if index == 1 else 58)
     f, lines, line_h = fit_block(draw, line, start=start_size)
     block_h = len(lines) * line_h
     top = H / 2 - block_h / 2 - 40 + rise
@@ -226,9 +226,8 @@ async def build() -> Path:
     await speak("Από και προς το αεροδρόμιο.", brand_mp3)
     ff("-i", str(brand_mp3), "-ac", "1", "-ar", "44100", str(brand_wav))
     brand_pad = work / "brand_pad.wav"
-    # Target ~15.0s total for Google Ads 15s slots
-    story_so_far = sum(scene_durs) + duration(brand_wav)
-    brand_tail = max(0.9, 15.0 - story_so_far - 0.05)
+    # Keep under ~12s — fast punch for drivers (fits 15s slots with room)
+    brand_tail = 0.7
     ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{brand_tail:.3f}", str(brand_pad))
     brand_dur = duration(brand_wav) + brand_tail
     parts.extend([brand_wav, brand_pad])
