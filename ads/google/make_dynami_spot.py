@@ -35,15 +35,15 @@ SOFT = (190, 190, 190)
 BG = (8, 8, 8, 255)
 APP_URL = "taxiapp2026.github.io/taxi-client-app"
 VOICE = "el-GR-NestorasNeural"
-RATE = "+2%"  # snappy for drivers
+RATE = "+5%"  # fast, punchy
 
-# Driver-facing: brand → you, driver → you are the power → end
+# Driver-facing: call out → their slogan → brand
 LINES = [
-    "Taxi and Fly",
-    "Οδηγέ ταξί",
+    "Οδηγέ",
     "Η δύναμη είσαι εσύ",
+    "Taxi and Fly",
 ]
-HOLDS = [0.45, 0.35, 0.85]
+HOLDS = [0.30, 0.70, 0.40]
 
 
 def ease(k: float) -> float:
@@ -113,16 +113,16 @@ def text_frame(t: float, local: float, line: str, index: int) -> Image.Image:
 
     fade = ease(min(local / 0.35, 1.0))
     rise = (1 - fade) * 22
-    # Punch line larger; driver address solid white
-    start_size = 72 if index == 2 else (62 if index == 1 else 58)
+    # Slogan (index 1) is the gold hero; others white
+    start_size = 76 if index == 1 else (68 if index == 0 else 64)
     f, lines, line_h = fit_block(draw, line, start=start_size)
     block_h = len(lines) * line_h
     top = H / 2 - block_h / 2 - 40 + rise
-    color = GOLD if index == 2 else WHITE
+    color = GOLD if index == 1 else WHITE
     for i, ln in enumerate(lines):
         tw = draw.textlength(ln, font=f)
         draw.text(((W - tw) / 2, top + i * line_h), ln, font=f, fill=color + (int(255 * fade),))
-    bar_w = (280 if index == 2 else 200) * fade
+    bar_w = (300 if index == 1 else 180) * fade
     bar_y = top + block_h + 40
     if bar_w > 2:
         draw.rounded_rectangle(
@@ -221,16 +221,12 @@ async def build() -> Path:
         parts.extend([wav, pad])
         print(f"[dynami] {i}: «{line}» {d:.2f}s")
 
-    brand_mp3 = work / "brand.mp3"
-    brand_wav = work / "brand.wav"
-    await speak("Από και προς το αεροδρόμιο.", brand_mp3)
-    ff("-i", str(brand_mp3), "-ac", "1", "-ar", "44100", str(brand_wav))
+    # Silent end card only — slogan already landed; keep it short
     brand_pad = work / "brand_pad.wav"
-    # Keep under ~12s — fast punch for drivers (fits 15s slots with room)
-    brand_tail = 0.7
+    brand_tail = 1.35
     ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{brand_tail:.3f}", str(brand_pad))
-    brand_dur = duration(brand_wav) + brand_tail
-    parts.extend([brand_wav, brand_pad])
+    brand_dur = brand_tail
+    parts.append(brand_pad)
 
     lst = work / "vo_join.txt"
     lst.write_text("".join(f"file '{p.resolve()}'\n" for p in parts))
