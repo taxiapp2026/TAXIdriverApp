@@ -38,19 +38,19 @@ COIN = (60, 175, 100)
 BG = (8, 8, 8, 255)
 APP_URL = "taxiapp2026.github.io/taxi-client-app"
 VOICE = "el-GR-NestorasNeural"
-RATE = "-2%"  # natural Greek
-BRAND_TAIL = 1.0
+RATE = "+2%"  # clear but not rushed
+BRAND_TAIL = 0.9
 
 # Clear beats; VO phonetics for Multi; visuals timed to speech
 BEATS = [
-    ("intro", "Taxi and Fly Μούλτι.", 0.25),
-    ("alone", "Μόνος σου, πενήντα ευρώ.", 0.20),
-    ("pair", "Έρχεται παρέα. Ένα συν ένα.", 0.15),
-    ("split2", "Σπλιτάρουμε. Είκοσι πέντε ο καθένας.", 0.20),
-    ("trio", "Και τρίτος. Ένα συν δύο.", 0.15),
-    ("split3", "Σπλιτάρουμε. Είκοσι.", 0.25),
-    ("punch", "Εμείς σου βρίσκουμε την παρέα, εσύ σπλιτάρεις την τιμή.", 0.70),
-    ("cta", "Taxi and Fly Μούλτι. Δοκίμασέ το.", 0.80),
+    ("intro", "Taxi and Fly Μούλτι.", 0.15),
+    ("alone", "Μόνος, πενήντα.", 0.12),
+    ("pair", "Παρέα. Ένα συν ένα.", 0.10),
+    ("split2", "Σπλιτάρουμε. Είκοσι πέντε.", 0.12),
+    ("trio", "Και τρίτος.", 0.10),
+    ("split3", "Σπλιτάρουμε. Είκοσι.", 0.15),
+    ("punch", "Εμείς σου βρίσκουμε την παρέα, εσύ σπλιτάρεις την τιμή.", 0.50),
+    ("cta", "Μούλτι. Δοκίμασέ το.", 0.60),
 ]
 
 
@@ -429,11 +429,11 @@ async def build() -> Path:
         ff("-i", str(mp3), "-ac", "1", "-ar", "44100", str(wav))
         # ensure enough visual time for walk/split motion
         min_vis = {
-            "alone": 2.4,
-            "pair": 2.5,
-            "split2": 2.2,
-            "trio": 2.3,
-            "split3": 2.2,
+            "alone": 2.0,
+            "pair": 2.1,
+            "split2": 1.9,
+            "trio": 1.9,
+            "split3": 1.9,
         }.get(key, 0.0)
         d_vo = duration(wav) + hold
         extra = max(0.0, min_vis - d_vo)
