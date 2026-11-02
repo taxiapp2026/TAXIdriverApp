@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Taxi and Fly Multi — clean motion split spot.
+"""Taxi and Fly Multi — polished motion split spot.
 
-Smooth walkers → SPLIT → coins. Clear Greek VO (Μούλτι / σπλιτάρουμε).
+Careful timing: walks finish before SPLIT; VO clear (Μούλτι / σπλιτάρουμε).
 Punch: Εμείς σου βρίσκουμε την παρέα, εσύ σπλιτάρεις την τιμή.
 End: Taxi and Fly Multi — Δοκίμασέ το.
 """
@@ -31,27 +31,33 @@ from spot_audio import hope_music, logo_sting  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
 GOLD = (255, 210, 40)
-WHITE = (245, 245, 245)
-SOFT = (180, 180, 180)
-INK = (25, 25, 25)
-COIN = (60, 175, 100)
+WHITE = (248, 248, 248)
+SOFT = (175, 175, 175)
+INK = (22, 22, 22)
+COIN = (55, 168, 95)
+ROAD = (32, 32, 32)
 BG = (8, 8, 8, 255)
 APP_URL = "taxiapp2026.github.io/taxi-client-app"
 VOICE = "el-GR-NestorasNeural"
-RATE = "+2%"  # clear but not rushed
-BRAND_TAIL = 0.9
+RATE = "+0%"
+BRAND_TAIL = 1.0
 
-# Clear beats; VO phonetics for Multi; visuals timed to speech
+# spoken, hold after — scene key drives visuals; animation uses local/dur
 BEATS = [
-    ("intro", "Taxi and Fly Μούλτι.", 0.15),
-    ("alone", "Μόνος, πενήντα.", 0.12),
-    ("pair", "Παρέα. Ένα συν ένα.", 0.10),
-    ("split2", "Σπλιτάρουμε. Είκοσι πέντε.", 0.12),
-    ("trio", "Και τρίτος.", 0.10),
-    ("split3", "Σπλιτάρουμε. Είκοσι.", 0.15),
-    ("punch", "Εμείς σου βρίσκουμε την παρέα, εσύ σπλιτάρεις την τιμή.", 0.50),
-    ("cta", "Μούλτι. Δοκίμασέ το.", 0.60),
+    ("intro", "Taxi and Fly Μούλτι.", 0.30),
+    ("alone", "Μόνος σου. Πενήντα ευρώ.", 0.25),
+    ("pair", "Έρχεται παρέα. Σπλιτάρουμε. Είκοσι πέντε.", 0.30),
+    ("trio", "Και τρίτος. Σπλιτάρουμε. Είκοσι.", 0.35),
+    ("punch", "Εμείς σου βρίσκουμε την παρέα, εσύ σπλιτάρεις την τιμή.", 0.85),
+    ("cta", "Taxi and Fly Μούλτι. Δοκίμασέ το.", 0.90),
 ]
+
+# minimum visual seconds so walks can finish cleanly
+MIN_VIS = {
+    "alone": 2.6,
+    "pair": 4.2,
+    "trio": 4.0,
+}
 
 
 def ease(k: float) -> float:
@@ -66,8 +72,8 @@ def ease_in_out(k: float) -> float:
 
 def glow_layer() -> Image.Image:
     yy, xx = np.mgrid[0:H, 0:W]
-    d = np.sqrt(((xx - W / 2) / 540.0) ** 2 + ((yy - H * 0.4) / 700.0) ** 2)
-    a = np.clip(1.0 - d, 0.0, 1.0) ** 2.2 * 85.0
+    d = np.sqrt(((xx - W / 2) / 520.0) ** 2 + ((yy - H * 0.38) / 680.0) ** 2)
+    a = np.clip(1.0 - d, 0.0, 1.0) ** 2.3 * 80.0
     rgba = np.zeros((H, W, 4), dtype=np.uint8)
     rgba[..., 0], rgba[..., 1], rgba[..., 2] = GOLD
     rgba[..., 3] = a.astype(np.uint8)
@@ -99,10 +105,13 @@ def badge_image() -> Image.Image:
 
 def background(t: float) -> Image.Image:
     img = Image.new("RGBA", (W, H), BG)
-    img.alpha_composite(GLOW, (0, int(10 * math.sin(t * 0.4))))
+    img.alpha_composite(GLOW, (0, int(8 * math.sin(t * 0.35))))
     draw = ImageDraw.Draw(img)
-    # soft road
-    draw.rounded_rectangle((60, 1280, W - 60, 1360), radius=20, fill=(28, 28, 28, 255))
+    draw.rounded_rectangle((50, 1290, W - 50, 1375), radius=24, fill=ROAD + (255,))
+    # soft lane mark
+    for i in range(6):
+        x0 = 120 + i * 150
+        draw.rounded_rectangle((x0, 1326, x0 + 70, 1336), radius=3, fill=(55, 55, 55, 255))
     return img
 
 
@@ -124,20 +133,23 @@ def walker(
     phase: float = 0.0,
     alpha: float = 1.0,
     scale: float = 1.0,
+    moving: float = 1.0,
 ) -> None:
-    """Smooth walking number-person (cycle synced to time)."""
+    """Number-head figure. moving=0 freezes pose; moving=1 full walk cycle."""
     a = int(255 * max(0.0, min(alpha, 1.0)))
-    if a < 8:
+    if a < 10:
         return
     s = scale
-    # walk cycle
-    step = math.sin(t * 9.0 + phase)
-    bob = abs(math.sin(t * 9.0 + phase)) * 5 * s
-    arm = step * 22 * s
-    leg = step * 26 * s
+    moving = max(0.0, min(moving, 1.0))
+    step = math.sin(t * 8.5 + phase) * moving
+    bob = abs(math.sin(t * 8.5 + phase)) * 4.5 * s * moving
+    arm = step * 20 * s
+    leg = step * 24 * s
 
-    head_r = 42 * s
-    head_y = y - 95 * s - bob
+    head_r = 44 * s
+    head_y = y - 100 * s - bob
+    # soft shadow
+    draw.ellipse((x - 28 * s, y + 48 * s, x + 28 * s, y + 62 * s), fill=(0, 0, 0, int(50 * alpha)))
     # head
     draw.ellipse(
         (x - head_r, head_y - head_r, x + head_r, head_y + head_r),
@@ -145,20 +157,20 @@ def walker(
         outline=INK + (a,),
         width=5,
     )
-    f = ImageFont.truetype(FONT, max(28, int(46 * s)))
+    f = ImageFont.truetype(FONT, max(30, int(48 * s)))
     tw = draw.textlength(digit, font=f)
-    draw.text((x - tw / 2, head_y - int(24 * s)), digit, font=f, fill=INK + (a,))
+    draw.text((x - tw / 2, head_y - int(26 * s)), digit, font=f, fill=INK + (a,))
 
-    body_top = head_y + head_r - 2
+    body_top = head_y + head_r
     hip = y - bob
-    # torso
-    draw.line((x, body_top, x, hip), fill=WHITE + (a,), width=max(5, int(7 * s)))
-    # arms
-    draw.line((x, body_top + 22 * s, x - 36 * s + arm, body_top + 58 * s), fill=WHITE + (a,), width=5)
-    draw.line((x, body_top + 22 * s, x + 36 * s - arm, body_top + 58 * s), fill=WHITE + (a,), width=5)
-    # legs
-    draw.line((x, hip, x - 22 * s - leg, hip + 52 * s), fill=WHITE + (a,), width=5)
-    draw.line((x, hip, x + 22 * s + leg, hip + 52 * s), fill=WHITE + (a,), width=5)
+    thick = max(6, int(8 * s))
+    draw.line((x, body_top, x, hip), fill=WHITE + (a,), width=thick)
+    draw.line((x, body_top + 24 * s, x - 34 * s + arm, body_top + 60 * s), fill=WHITE + (a,), width=6)
+    draw.line((x, body_top + 24 * s, x + 34 * s - arm, body_top + 60 * s), fill=WHITE + (a,), width=6)
+    # legs to ground
+    foot_y = hip + 55 * s
+    draw.line((x, hip, x - 20 * s - leg, foot_y), fill=WHITE + (a,), width=6)
+    draw.line((x, hip, x + 20 * s + leg, foot_y), fill=WHITE + (a,), width=6)
 
 
 def coin(
@@ -173,162 +185,179 @@ def coin(
     pop = max(0.0, min(pop, 1.0))
     if pop < 0.02:
         return
-    bounce = (1 - pop) * 50 + math.sin(t * 5 + phase) * 3 * pop
-    r = 62 * (0.55 + 0.45 * pop)
+    # settle bounce
+    bounce = (1 - pop) ** 2 * 55 + math.sin(t * 4.5 + phase) * 2.5 * pop
+    r = 66 * (0.5 + 0.5 * pop)
     cy = y - bounce
     a = int(255 * pop)
+    draw.ellipse((x - r - 4, cy + r - 6, x + r + 4, cy + r + 10), fill=(0, 0, 0, int(40 * pop)))
     draw.ellipse((x - r, cy - r, x + r, cy + r), fill=COIN + (a,), outline=GOLD + (a,), width=6)
-    draw.ellipse((x - r + 8, cy - r + 8, x + r - 8, cy + r - 8), outline=GOLD + (int(160 * pop),), width=3)
-    f = ImageFont.truetype(FONT, max(26, int(34 * pop + 8)))
+    draw.ellipse((x - r + 9, cy - r + 9, x + r - 9, cy + r - 9), outline=GOLD + (int(150 * pop),), width=3)
+    f = ImageFont.truetype(FONT, max(28, int(36 * pop + 6)))
     tw = draw.textlength(label, font=f)
-    draw.text((x - tw / 2, cy - 20), label, font=f, fill=WHITE + (a,))
+    draw.text((x - tw / 2, cy - 22), label, font=f, fill=WHITE + (a,))
 
 
 def split_banner(draw: ImageDraw.ImageDraw, y: float, t: float, show: float) -> None:
     show = max(0.0, min(show, 1.0))
-    if show < 0.05:
+    if show < 0.04:
         return
-    pulse = 0.85 + 0.15 * math.sin(t * 12)
-    f = ImageFont.truetype(FONT, 70)
+    # scale pop then settle
+    pop = ease(min(show / 0.35, 1.0))
+    pulse = 0.92 + 0.08 * math.sin(t * 10) * show
+    size = int(64 + 12 * pop)
+    f = ImageFont.truetype(FONT, size)
     label = "SPLIT"
     tw = draw.textlength(label, font=f)
-    pad_x, pad_y = 34, 14
-    a = int(255 * show * pulse)
-    box = (W / 2 - tw / 2 - pad_x, y, W / 2 + tw / 2 + pad_x, y + 70 + pad_y * 2)
-    draw.rounded_rectangle(box, radius=18, outline=GOLD + (a,), width=6)
-    draw.text(((W - tw) / 2, y + pad_y), label, font=f, fill=GOLD + (a,))
+    pad_x, pad_y = 32, 12
+    a = int(255 * show)
+    cx = W / 2
+    box = (
+        cx - tw / 2 * pulse - pad_x,
+        y,
+        cx + tw / 2 * pulse + pad_x,
+        y + size + pad_y * 2,
+    )
+    draw.rounded_rectangle(box, radius=16, fill=(35, 32, 12, int(180 * show)), outline=GOLD + (a,), width=6)
+    draw.text((cx - tw / 2, y + pad_y), label, font=f, fill=GOLD + (a,))
 
 
-def scene_intro(t: float, local: float) -> Image.Image:
+def scene_intro(t: float, local: float, dur: float) -> Image.Image:
     img = background(t)
     draw = ImageDraw.Draw(img)
-    k = ease(min(local / 0.4, 1.0))
-    text_c(draw, "Taxi and Fly Multi", H / 2 - 50, 58, WHITE + (int(255 * k),))
-    bar = 240 * k
+    k = ease(min(local / 0.45, 1.0))
+    text_c(draw, "Taxi and Fly Multi", H / 2 - 55, 58, WHITE + (int(255 * k),))
+    bar = 250 * k
     draw.rounded_rectangle(
-        (W / 2 - bar / 2, H / 2 + 40, W / 2 + bar / 2, H / 2 + 47),
+        (W / 2 - bar / 2, H / 2 + 35, W / 2 + bar / 2, H / 2 + 42),
         radius=4,
         fill=GOLD + (int(230 * k),),
     )
     return img
 
 
-def scene_alone(t: float, local: float) -> Image.Image:
+def scene_alone(t: float, local: float, dur: float) -> Image.Image:
     img = background(t)
     draw = ImageDraw.Draw(img)
-    # walk from left toward center
-    p = ease_in_out(min(local / 2.2, 1.0))
-    x = 160 + p * 380
-    walker(draw, x, 1240, "1", local, 0.0, 1.0, 1.2)
-    price = ease(min(max((local - 0.5) / 0.4, 0.0), 1.0))
-    text_c(draw, "50€", 400 + (1 - price) * 24, 130, WHITE + (int(255 * price),))
-    text_c(draw, "μόνος", 560, 40, SOFT + (int(200 * price),), FONT_REG)
+    # 0–70% walk to center, then stand
+    p = ease_in_out(min(local / max(dur * 0.72, 0.1), 1.0))
+    x = 150 + p * 390
+    moving = 1.0 if p < 0.98 else 0.0
+    walker(draw, x, 1255, "1", t, 0.0, 1.0, 1.18, moving=moving)
+    # price after he arrives a bit
+    price = ease(min(max((local - dur * 0.35) / 0.4, 0.0), 1.0))
+    text_c(draw, "50€", 390 + (1 - price) * 18, 128, WHITE + (int(255 * price),))
+    text_c(draw, "μόνος", 545, 38, SOFT + (int(200 * price),), FONT_REG)
     return img
 
 
-def scene_pair(t: float, local: float) -> Image.Image:
+def scene_pair(t: float, local: float, dur: float) -> Image.Image:
+    """Meet as παρέα (first ~55%), then SPLIT → 25€."""
     img = background(t)
     draw = ImageDraw.Draw(img)
-    text_c(draw, "1 + 1", 360, 88, GOLD + (255,))
-    # second walks in from right to meet first
-    p = ease_in_out(min(local / 2.0, 1.0))
-    x1 = 360
-    x2 = 980 - p * 340
-    walker(draw, x1, 1240, "1", local, 0.0, 1.0, 1.05)
-    walker(draw, x2, 1240, "1", local, 1.7, 1.0, 1.05)
-    if p > 0.85:
-        hi = ease((p - 0.85) / 0.15)
-        text_c(draw, "παρέα!", 500, 46, WHITE + (int(230 * hi),))
+    u = local / max(dur, 0.01)
+    text_c(draw, "1 + 1", 340, 86, GOLD + (255,))
+
+    if u < 0.52:
+        # walk together
+        p = ease_in_out(u / 0.52)
+        x1 = 340
+        x2 = 1000 - p * 380
+        walker(draw, x1, 1255, "1", t, 0.0, 1.0, 1.05, moving=0.15)
+        walker(draw, x2, 1255, "1", t, 1.8, 1.0, 1.05, moving=1.0 if p < 0.97 else 0.0)
+        if p > 0.82:
+            hi = ease((p - 0.82) / 0.18)
+            text_c(draw, "παρέα!", 480, 44, WHITE + (int(235 * hi),))
+    else:
+        # SPLIT morph
+        s = (u - 0.52) / 0.48
+        morph = ease_in_out(min(s / 0.35, 1.0))
+        walker(draw, W / 2 - 155, 1255, "1", t, 0.0, 1.0 - morph, 1.0 - 0.25 * morph, moving=0.0)
+        walker(draw, W / 2 + 155, 1255, "1", t, 1.5, 1.0 - morph, 1.0 - 0.25 * morph, moving=0.0)
+        split_banner(draw, 430, t, ease(min(s / 0.2, 1.0)))
+        pop = ease(min(max((s - 0.22) / 0.4, 0.0), 1.0))
+        coin(draw, W / 2 - 175, 1140, "25€", pop, t, 0.0)
+        coin(draw, W / 2 + 175, 1140, "25€", pop, t, 1.1)
+        text_c(draw, "ο καθένας", 1320, 34, SOFT + (int(210 * pop),), FONT_REG)
     return img
 
 
-def scene_split2(t: float, local: float) -> Image.Image:
+def scene_trio(t: float, local: float, dur: float) -> Image.Image:
+    """Third joins (~50%), then SPLIT → 20€."""
     img = background(t)
     draw = ImageDraw.Draw(img)
-    # walkers dissolve → coins
-    morph = ease_in_out(min(local / 0.7, 1.0))
-    walker(draw, W / 2 - 150, 1240, "1", local, 0.0, 1.0 - morph, 1.0)
-    walker(draw, W / 2 + 150, 1240, "1", local, 1.5, 1.0 - morph, 1.0)
-    split_banner(draw, 420, local, ease(min(local / 0.25, 1.0)))
-    pop = ease(min(max((local - 0.35) / 0.45, 0.0), 1.0))
-    coin(draw, W / 2 - 170, 1120, "25€", pop, local, 0.0)
-    coin(draw, W / 2 + 170, 1120, "25€", pop, local, 1.2)
-    text_c(draw, "ο καθένας", 1300, 36, SOFT + (int(210 * pop),), FONT_REG)
+    u = local / max(dur, 0.01)
+    text_c(draw, "1 + 2", 340, 86, GOLD + (255,))
+
+    if u < 0.50:
+        p = ease_in_out(u / 0.50)
+        x3 = 1020 - p * 440
+        walker(draw, W / 2 - 210, 1255, "1", t, 0.0, 1.0, 0.98, moving=0.1)
+        walker(draw, W / 2, 1255, "1", t, 1.2, 1.0, 0.98, moving=0.1)
+        walker(draw, x3, 1255, "1", t, 2.5, 1.0, 0.98, moving=1.0 if p < 0.97 else 0.0)
+        if p > 0.8:
+            hi = ease((p - 0.8) / 0.2)
+            text_c(draw, "και τρίτος!", 480, 42, WHITE + (int(235 * hi),))
+    else:
+        s = (u - 0.50) / 0.50
+        morph = ease_in_out(min(s / 0.35, 1.0))
+        for i, ox in enumerate((-210, 0, 210)):
+            walker(draw, W / 2 + ox, 1255, "1", t, i * 1.1, 1.0 - morph, 0.95 - 0.2 * morph, moving=0.0)
+        split_banner(draw, 410, t, ease(min(s / 0.2, 1.0)))
+        pop = ease(min(max((s - 0.2) / 0.4, 0.0), 1.0))
+        for i, ox in enumerate((-235, 0, 235)):
+            coin(draw, W / 2 + ox, 1120, "20€", pop, t, i * 0.85)
+        text_c(draw, "ο καθένας", 1320, 34, SOFT + (int(210 * pop),), FONT_REG)
     return img
 
 
-def scene_trio(t: float, local: float) -> Image.Image:
+def scene_punch(t: float, local: float, dur: float) -> Image.Image:
     img = background(t)
     draw = ImageDraw.Draw(img)
-    text_c(draw, "1 + 2", 360, 88, GOLD + (255,))
-    p = ease_in_out(min(local / 1.8, 1.0))
-    x3 = 1000 - p * 420
-    walker(draw, W / 2 - 200, 1240, "1", local, 0.0, 1.0, 0.98)
-    walker(draw, W / 2, 1240, "1", local, 1.2, 1.0, 0.98)
-    walker(draw, x3, 1240, "1", local, 2.4, 1.0, 0.98)
-    if p > 0.8:
-        hi = ease((p - 0.8) / 0.2)
-        text_c(draw, "και τρίτος!", 500, 44, WHITE + (int(230 * hi),))
-    return img
-
-
-def scene_split3(t: float, local: float) -> Image.Image:
-    img = background(t)
-    draw = ImageDraw.Draw(img)
-    morph = ease_in_out(min(local / 0.65, 1.0))
-    for i, ox in enumerate((-200, 0, 200)):
-        walker(draw, W / 2 + ox, 1240, "1", local, i * 1.1, 1.0 - morph, 0.95)
-    split_banner(draw, 400, local, ease(min(local / 0.25, 1.0)))
-    pop = ease(min(max((local - 0.3) / 0.45, 0.0), 1.0))
-    for i, ox in enumerate((-230, 0, 230)):
-        coin(draw, W / 2 + ox, 1100, "20€", pop, local, i * 0.9)
-    text_c(draw, "ο καθένας", 1300, 36, SOFT + (int(210 * pop),), FONT_REG)
-    return img
-
-
-def scene_punch(t: float, local: float) -> Image.Image:
-    img = background(t)
-    draw = ImageDraw.Draw(img)
-    k = ease(min(local / 0.35, 1.0))
+    k = ease(min(local / 0.4, 1.0))
     a = int(255 * k)
+    # line 1 then line 2 stagger
+    k2 = ease(min(max((local - 0.35) / 0.4, 0.0), 1.0))
     lines = [
-        ("Εμείς σου βρίσκουμε την παρέα", WHITE, 42),
-        ("εσύ σπλιτάρεις την τιμή", GOLD, 50),
+        ("Εμείς σου βρίσκουμε την παρέα", WHITE, 42, k),
+        ("εσύ σπλιτάρεις την τιμή", GOLD, 50, k2),
     ]
-    y = H / 2 - 110
-    for text, color, size in lines:
+    y = H / 2 - 115
+    for text, color, size, kk in lines:
         f = ImageFont.truetype(FONT, size)
         while draw.textlength(text, font=f) > 940 and size > 26:
             size -= 2
             f = ImageFont.truetype(FONT, size)
         tw = draw.textlength(text, font=f)
-        draw.text(((W - tw) / 2, y), text, font=f, fill=color + (a,))
-        y += size + 28
-    bar = 260 * k
-    draw.rounded_rectangle(
-        (W / 2 - bar / 2, y + 10, W / 2 + bar / 2, y + 17),
-        radius=4,
-        fill=GOLD + (int(230 * k),),
-    )
+        draw.text(((W - tw) / 2, y), text, font=f, fill=color + (int(255 * kk),))
+        y += size + 30
+    bar = 270 * k2
+    if bar > 2:
+        draw.rounded_rectangle(
+            (W / 2 - bar / 2, y + 8, W / 2 + bar / 2, y + 15),
+            radius=4,
+            fill=GOLD + (int(230 * k2),),
+        )
     return img
 
 
-def scene_cta(t: float, local: float) -> Image.Image:
+def scene_cta(t: float, local: float, dur: float) -> Image.Image:
     img = background(t)
     draw = ImageDraw.Draw(img)
     k = ease(min(local / 0.4, 1.0))
     a = int(255 * k)
-    text_c(draw, "Taxi and Fly Multi", H / 2 - 110, 56, WHITE + (a,))
-    text_c(draw, "Δοκίμασέ το", H / 2 - 10, 70, GOLD + (a,))
-    bar = 280 * k
+    text_c(draw, "Taxi and Fly Multi", H / 2 - 120, 56, WHITE + (a,))
+    k2 = ease(min(max((local - 0.25) / 0.4, 0.0), 1.0))
+    text_c(draw, "Δοκίμασέ το", H / 2 - 15, 70, GOLD + (int(255 * k2),))
+    bar = 280 * k2
     draw.rounded_rectangle(
-        (W / 2 - bar / 2, H / 2 + 90, W / 2 + bar / 2, H / 2 + 97),
+        (W / 2 - bar / 2, H / 2 + 85, W / 2 + bar / 2, H / 2 + 92),
         radius=4,
-        fill=GOLD + (int(230 * k),),
+        fill=GOLD + (int(230 * k2),),
     )
-    pop = ease(min(max((local - 0.25) / 0.4, 0.0), 1.0))
-    coin(draw, 210, 1280, "€", pop, local, 0.0)
-    coin(draw, W - 210, 1280, "€", pop, local, 1.4)
+    pop = ease(min(max((local - 0.35) / 0.4, 0.0), 1.0))
+    coin(draw, 200, 1280, "€", pop, t, 0.0)
+    coin(draw, W - 200, 1280, "€", pop, t, 1.3)
     return img
 
 
@@ -336,9 +365,7 @@ SCENES = {
     "intro": scene_intro,
     "alone": scene_alone,
     "pair": scene_pair,
-    "split2": scene_split2,
     "trio": scene_trio,
-    "split3": scene_split3,
     "punch": scene_punch,
     "cta": scene_cta,
 }
@@ -353,18 +380,18 @@ def brand_frame(t: float, start: float) -> Image.Image:
     size = int(460 * (0.92 + 0.08 * k))
     mark = mark.resize((size, size), Image.Resampling.LANCZOS)
     img.alpha_composite(mark, ((W - size) // 2, 400))
-    fade = ease(min(max((since - 0.1) / 0.35, 0.0), 1.0))
-    f_brand = ImageFont.truetype(FONT, 58)
+    fade = ease(min(max((since - 0.12) / 0.4, 0.0), 1.0))
+    f_brand = ImageFont.truetype(FONT, 56)
     f_cta = ImageFont.truetype(FONT, 48)
     f_url = ImageFont.truetype(FONT_REG, 26)
     for text, font, y, color in (
         ("Taxi and Fly Multi", f_brand, 960, GOLD),
-        ("Δοκίμασέ το", f_cta, 1050, WHITE),
+        ("Δοκίμασέ το", f_cta, 1045, WHITE),
     ):
         tw = draw.textlength(text, font=font)
         draw.text(((W - tw) / 2, y), text, font=font, fill=color + (int(255 * fade),))
     uw = draw.textlength(APP_URL, font=f_url)
-    draw.text(((W - uw) / 2, 1150), APP_URL, font=f_url, fill=SOFT + (int(210 * fade),))
+    draw.text(((W - uw) / 2, 1145), APP_URL, font=f_url, fill=SOFT + (int(210 * fade),))
     return img
 
 
@@ -398,13 +425,13 @@ def mix_audio(vo: Path, bed: Path, sting: Path, total: float, dst: Path) -> None
     ff(
         "-i", str(bed), "-i", str(sting), "-i", str(vo),
         "-filter_complex",
-        "[0:a]volume=0.15,afade=t=in:st=0:d=0.5,"
+        "[0:a]volume=0.14,afade=t=in:st=0:d=0.5,"
         f"afade=t=out:st={max(total - 1.3, 0.4):.2f}:d=1.1,"
         "aformat=sample_rates=44100:channel_layouts=stereo[m];"
-        "[1:a]volume=0.38,aformat=sample_rates=44100:channel_layouts=stereo[s];"
-        "[2:a]highpass=f=90,equalizer=f=220:t=q:w=1:g=1.2,equalizer=f=2800:t=q:w=1:g=1.1,"
+        "[1:a]volume=0.36,aformat=sample_rates=44100:channel_layouts=stereo[s];"
+        "[2:a]highpass=f=90,equalizer=f=220:t=q:w=1:g=1.2,equalizer=f=2800:t=q:w=1:g=1.15,"
         "acompressor=threshold=-18dB:ratio=1.5:attack=10:release=100,"
-        "aformat=sample_rates=44100:channel_layouts=stereo,volume=1.14,"
+        "aformat=sample_rates=44100:channel_layouts=stereo,volume=1.16,"
         "apad=pad_dur=0.8[v];"
         "[m][s][v]amix=inputs=3:duration=longest:dropout_transition=0:normalize=0,"
         "loudnorm=I=-14:TP=-1.0:LRA=11,"
@@ -427,28 +454,18 @@ async def build() -> Path:
         wav = work / f"line_{i}.wav"
         await speak(spoken, mp3)
         ff("-i", str(mp3), "-ac", "1", "-ar", "44100", str(wav))
-        # ensure enough visual time for walk/split motion
-        min_vis = {
-            "alone": 2.0,
-            "pair": 2.1,
-            "split2": 1.9,
-            "trio": 1.9,
-            "split3": 1.9,
-        }.get(key, 0.0)
         d_vo = duration(wav) + hold
-        extra = max(0.0, min_vis - d_vo)
+        need = MIN_VIS.get(key, 0.0)
+        extra = max(0.0, need - d_vo)
+        pad = work / f"line_{i}_pad.wav"
+        ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{hold:.3f}", str(pad))
+        chunks = [wav, pad]
         if extra > 0.05:
             pad2 = work / f"line_{i}_extra.wav"
             ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{extra:.3f}", str(pad2))
-            pad = work / f"line_{i}_pad.wav"
-            ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{hold:.3f}", str(pad))
-            d = d_vo + extra
-            parts.extend([wav, pad, pad2])
-        else:
-            pad = work / f"line_{i}_pad.wav"
-            ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{hold:.3f}", str(pad))
-            d = d_vo
-            parts.extend([wav, pad])
+            chunks.append(pad2)
+        d = d_vo + extra
+        parts.extend(chunks)
         scene_durs.append(d)
         keys.append(key)
         print(f"[split] {key}: «{spoken}» {d:.2f}s")
@@ -470,23 +487,23 @@ async def build() -> Path:
     frames = work / "frames"
     frames.mkdir(parents=True)
     idx = 0
-    xfade = 0.30
+    xfade = 0.28
     for i, (key, seconds) in enumerate(zip(keys, scene_durs)):
         n = int(round(seconds * FPS))
         fn = SCENES[key]
         for j in range(n):
             local = j / FPS
             t = idx / FPS
-            base = fn(t, local)
+            base = fn(t, local, seconds)
             remaining = seconds - local
             if remaining < xfade and i < len(keys) - 1:
                 k = ease(1.0 - remaining / xfade)
-                nxt = SCENES[keys[i + 1]](t, 0.0)
-                base = blend(base, nxt, k * 0.7)
+                nxt = SCENES[keys[i + 1]](t, 0.0, scene_durs[i + 1])
+                base = blend(base, nxt, k * 0.65)
             elif remaining < xfade and i == len(keys) - 1:
                 k = ease(1.0 - remaining / xfade)
                 nxt = brand_frame(brand_start, brand_start)
-                base = blend(base, nxt, k * 0.6)
+                base = blend(base, nxt, k * 0.55)
             base.convert("RGB").save(frames / f"{idx:05d}.png")
             idx += 1
 
