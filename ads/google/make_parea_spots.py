@@ -41,8 +41,9 @@ SPOTS = {
     "proorismo": {
         "out": ROOT / "taxi-and-fly-multi-proorismo.mp4",
         "art": "taxi-and-fly-multi-proorismo.mp4",
+        # On-screen: Multi | Spoken: Μούλτι (Greek pronunciation)
         "beats": [
-            ("Taxi and Fly Multi.", ["Taxi and Fly Multi"], 0.25),
+            ("Taxi and Fly Μούλτι.", ["Taxi and Fly Multi"], 0.25),
             ("Εσύ τον προορισμό,", ["Taxi and Fly Multi", "Εσύ τον προορισμό"], 0.20),
             ("εμείς την παρέα.", ["Taxi and Fly Multi", "Εσύ τον προορισμό", "εμείς την παρέα"], 1.10),
         ],
@@ -52,9 +53,19 @@ SPOTS = {
         "out": ROOT / "taxi-and-fly-multi-ptisi.mp4",
         "art": "taxi-and-fly-multi-ptisi.mp4",
         "beats": [
-            ("Taxi and Fly Multi.", ["Taxi and Fly Multi"], 0.25),
+            ("Taxi and Fly Μούλτι.", ["Taxi and Fly Multi"], 0.25),
             ("Εσύ έχεις την πτήση,", ["Taxi and Fly Multi", "Εσύ έχεις την πτήση"], 0.20),
             ("εμείς φτιάχνουμε την παρέα.", ["Taxi and Fly Multi", "Εσύ έχεις την πτήση", "εμείς φτιάχνουμε την παρέα"], 1.10),
+        ],
+        "brand_tail": 1.5,
+    },
+    "split": {
+        "out": ROOT / "taxi-and-fly-multi-split.mp4",
+        "art": "taxi-and-fly-multi-split.mp4",
+        "beats": [
+            ("Taxi and Fly Μούλτι.", ["Taxi and Fly Multi"], 0.25),
+            ("Εμείς σου βρίσκουμε την παρέα,", ["Taxi and Fly Multi", "Εμείς σου βρίσκουμε την παρέα"], 0.20),
+            ("εσύ σπλιτάρεις την τιμή.", ["Taxi and Fly Multi", "Εμείς σου βρίσκουμε την παρέα", "εσύ σπλιτάρεις την τιμή"], 1.10),
         ],
         "brand_tail": 1.5,
     },
@@ -328,8 +339,11 @@ async def build_one(slug: str, cfg: dict) -> Path:
 
 
 async def main() -> None:
-    for slug, cfg in SPOTS.items():
-        await build_one(slug, cfg)
+    only = sys.argv[1:] if len(sys.argv) > 1 else list(SPOTS)
+    for slug in only:
+        if slug not in SPOTS:
+            raise SystemExit(f"unknown spot: {slug}")
+        await build_one(slug, SPOTS[slug])
 
 
 if __name__ == "__main__":
