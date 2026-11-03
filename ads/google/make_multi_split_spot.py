@@ -39,24 +39,27 @@ ROAD = (32, 32, 32)
 BG = (8, 8, 8, 255)
 APP_URL = "taxiapp2026.github.io/taxi-client-app"
 VOICE = "el-GR-NestorasNeural"
-RATE = "-6%"  # warmer, clearer tone
-BRAND_TAIL = 1.1
+RATE = "-4%"  # warm, clear
+BRAND_TAIL = 1.0
 
 # spoken, hold after — scene key drives visuals; animation uses local/dur
 BEATS = [
-    ("intro", "Taxi and Fly Μούλτι.", 0.35),
-    ("alone", "Παράδειγμα. Μόνος σου, πενήντα ευρώ.", 0.30),
-    ("pair", "Έρχεται παρέα. Σπλιτάρουμε. Είκοσι πέντε.", 0.35),
-    ("trio", "Και τρίτος. Σπλιτάρουμε. Είκοσι.", 0.40),
-    ("punch", "Εμείς σου βρίσκουμε την παρέα, εσύ σπλιτάρεις την τιμή.", 0.95),
-    ("cta", "Taxi and Fly Μούλτι. Δοκίμασέ το.", 1.10),
+    ("intro", "Taxi and Fly Μούλτι.", 0.25),
+    ("example", "Προσοχή. Τα ποσά είναι παράδειγμα.", 0.35),
+    ("alone", "Μόνος σου, πενήντα ευρώ.", 0.20),
+    ("pair", "Έρχεται παρέα. Σπλιτάρουμε. Είκοσι πέντε.", 0.25),
+    ("trio", "Και τρίτος. Σπλιτάρουμε. Είκοσι.", 0.30),
+    ("punch", "Εμείς σου βρίσκουμε την παρέα, εσύ σπλιτάρεις την τιμή.", 0.70),
+    ("cta", "Taxi and Fly Μούλτι.", 0.35),
+    ("tryit", "Δοκίμασέ το.", 0.95),
 ]
 
 # minimum visual seconds so walks can finish cleanly
 MIN_VIS = {
-    "alone": 2.6,
-    "pair": 4.2,
-    "trio": 4.0,
+    "example": 1.8,
+    "alone": 2.4,
+    "pair": 3.8,
+    "trio": 3.6,
 }
 
 
@@ -198,18 +201,25 @@ def coin(
     draw.text((x - tw / 2, cy - 22), label, font=f, fill=WHITE + (a,))
 
 
-def example_badge(draw: ImageDraw.ImageDraw, y: float = 200, alpha: float = 1.0) -> None:
+def example_badge(draw: ImageDraw.ImageDraw, y: float = 200, alpha: float = 1.0, big: bool = False) -> None:
     """Clear on-screen label: these numbers are only an example."""
     a = int(255 * max(0.0, min(alpha, 1.0)))
     if a < 12:
         return
-    f = ImageFont.truetype(FONT_REG, 34)
+    size = 48 if big else 34
+    f = ImageFont.truetype(FONT if big else FONT_REG, size)
     label = "ΠΑΡΑΔΕΙΓΜΑ"
     tw = draw.textlength(label, font=f)
-    pad_x, pad_y = 22, 10
-    box = (W / 2 - tw / 2 - pad_x, y, W / 2 + tw / 2 + pad_x, y + 34 + pad_y * 2)
-    draw.rounded_rectangle(box, radius=14, fill=(40, 40, 40, int(200 * alpha)), outline=SOFT + (a,), width=3)
-    draw.text(((W - tw) / 2, y + pad_y), label, font=f, fill=SOFT + (a,))
+    pad_x, pad_y = (28, 14) if big else (22, 10)
+    box = (W / 2 - tw / 2 - pad_x, y, W / 2 + tw / 2 + pad_x, y + size + pad_y * 2)
+    outline = GOLD if big else SOFT
+    draw.rounded_rectangle(
+        box, radius=16 if big else 14,
+        fill=(40, 40, 40, int(210 * alpha)),
+        outline=outline + (a,),
+        width=4 if big else 3,
+    )
+    draw.text(((W - tw) / 2, y + pad_y), label, font=f, fill=(GOLD if big else SOFT) + (a,))
 
 
 def split_banner(draw: ImageDraw.ImageDraw, y: float, t: float, show: float) -> None:
@@ -247,6 +257,17 @@ def scene_intro(t: float, local: float, dur: float) -> Image.Image:
         radius=4,
         fill=GOLD + (int(230 * k),),
     )
+    return img
+
+
+def scene_example(t: float, local: float, dur: float) -> Image.Image:
+    """Full-screen disclaimer so nobody mistakes 50/25/20 for a real quote."""
+    img = background(t)
+    draw = ImageDraw.Draw(img)
+    k = ease(min(local / 0.4, 1.0))
+    example_badge(draw, H / 2 - 160, k, big=True)
+    text_c(draw, "Τα ποσά είναι μόνο", H / 2 - 20, 40, WHITE + (int(240 * k),), FONT_REG)
+    text_c(draw, "για να καταλάβεις πώς δουλεύει", H / 2 + 40, 36, SOFT + (int(220 * k),), FONT_REG)
     return img
 
 
@@ -362,21 +383,32 @@ def scene_punch(t: float, local: float, dur: float) -> Image.Image:
 def scene_cta(t: float, local: float, dur: float) -> Image.Image:
     img = background(t)
     draw = ImageDraw.Draw(img)
-    k = ease(min(local / 0.45, 1.0))
-    a = int(255 * k)
-    text_c(draw, "Taxi and Fly Multi", H / 2 - 160, 54, WHITE + (a,))
-    # CTA as clear invitation — larger, gold, after brand
-    k2 = ease(min(max((local - 0.35) / 0.5, 0.0), 1.0))
-    text_c(draw, "Δοκίμασέ το", H / 2 - 40, 78, GOLD + (int(255 * k2),))
-    bar = 300 * k2
+    k = ease(min(local / 0.4, 1.0))
+    text_c(draw, "Taxi and Fly Multi", H / 2 - 40, 58, WHITE + (int(255 * k),))
+    bar = 250 * k
     draw.rounded_rectangle(
-        (W / 2 - bar / 2, H / 2 + 70, W / 2 + bar / 2, H / 2 + 78),
+        (W / 2 - bar / 2, H / 2 + 50, W / 2 + bar / 2, H / 2 + 57),
         radius=4,
-        fill=GOLD + (int(230 * k2),),
+        fill=GOLD + (int(230 * k),),
     )
-    note = ease(min(max((local - 0.55) / 0.4, 0.0), 1.0))
-    text_c(draw, "Τα ποσά είναι παράδειγμα", H / 2 + 110, 32, SOFT + (int(200 * note),), FONT_REG)
-    pop = ease(min(max((local - 0.4) / 0.4, 0.0), 1.0))
+    return img
+
+
+def scene_tryit(t: float, local: float, dur: float) -> Image.Image:
+    """Dedicated warm invite — tone lands here."""
+    img = background(t)
+    draw = ImageDraw.Draw(img)
+    k = ease(min(local / 0.45, 1.0))
+    text_c(draw, "Δοκίμασέ το", H / 2 - 50, 82, GOLD + (int(255 * k),))
+    bar = 320 * k
+    draw.rounded_rectangle(
+        (W / 2 - bar / 2, H / 2 + 60, W / 2 + bar / 2, H / 2 + 68),
+        radius=4,
+        fill=GOLD + (int(230 * k),),
+    )
+    note = ease(min(max((local - 0.4) / 0.4, 0.0), 1.0))
+    text_c(draw, "Τα ποσά ήταν παράδειγμα", H / 2 + 110, 34, SOFT + (int(210 * note),), FONT_REG)
+    pop = ease(min(max((local - 0.25) / 0.4, 0.0), 1.0))
     coin(draw, 200, 1280, "€", pop, t, 0.0)
     coin(draw, W - 200, 1280, "€", pop, t, 1.3)
     return img
@@ -384,11 +416,13 @@ def scene_cta(t: float, local: float, dur: float) -> Image.Image:
 
 SCENES = {
     "intro": scene_intro,
+    "example": scene_example,
     "alone": scene_alone,
     "pair": scene_pair,
     "trio": scene_trio,
     "punch": scene_punch,
     "cta": scene_cta,
+    "tryit": scene_tryit,
 }
 
 
@@ -477,8 +511,8 @@ async def build() -> Path:
     for i, (key, spoken, hold) in enumerate(BEATS):
         mp3 = work / f"line_{i}.mp3"
         wav = work / f"line_{i}.wav"
-        # warmer invite on punch + CTA
-        line_rate = "-10%" if key in ("punch", "cta") else RATE
+        # warmer invite on punch + Δοκίμασέ το
+        line_rate = "-8%" if key in ("punch", "tryit", "example") else RATE
         await speak(spoken, mp3, rate=line_rate)
         ff("-i", str(mp3), "-ac", "1", "-ar", "44100", str(wav))
         d_vo = duration(wav) + hold
