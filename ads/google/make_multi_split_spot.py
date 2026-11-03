@@ -51,8 +51,8 @@ BEATS = [
     ("trio", "Και τρίτος. Σπλιτάρουμε. Είκοσι.", 0.30),
     ("punch", "Εμείς σου βρίσκουμε την παρέα, εσύ σπλιτάρεις την τιμή.", 0.70),
     ("cta", "Taxi and Fly Μούλτι.", 0.30),
-    # Spoken for natural stress; on-screen stays «Δοκίμασέ το»
-    ("tryit", "Έλα, δοκίμασέ το.", 0.85),
+    # Natural imperative — no extra «Έλα» in VO
+    ("tryit", "Δοκίμασέ το.", 0.90),
 ]
 
 # minimum visual seconds so walks can finish cleanly
@@ -512,9 +512,9 @@ async def build() -> Path:
     for i, (key, spoken, hold) in enumerate(BEATS):
         mp3 = work / f"line_{i}.mp3"
         wav = work / f"line_{i}.wav"
-        # example/punch a bit warmer; tryit at natural pace (not dragged)
+        # example/punch warmer; tryit natural conversational pace
         if key == "tryit":
-            line_rate = "+0%"
+            line_rate = "-2%"
         elif key in ("punch", "example"):
             line_rate = "-6%"
         else:
