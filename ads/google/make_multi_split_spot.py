@@ -294,8 +294,9 @@ def scene_pair(t: float, local: float, dur: float) -> Image.Image:
     img = background(t)
     draw = ImageDraw.Draw(img)
     u = local / max(dur, 0.01)
-    example_badge(draw, 180, 1.0)
-    text_c(draw, "1 + 1", 340, 86, GOLD + (255,))
+    example_badge(draw, 160, 1.0)
+    # Equation high; SPLIT mid with clear gap; coins lower
+    text_c(draw, "1 + 1", 280, 86, GOLD + (255,))
 
     if u < 0.52:
         # walk together
@@ -306,18 +307,18 @@ def scene_pair(t: float, local: float, dur: float) -> Image.Image:
         walker(draw, x2, 1255, "1", t, 1.8, 1.0, 1.05, moving=1.0 if p < 0.97 else 0.0)
         if p > 0.82:
             hi = ease((p - 0.82) / 0.18)
-            text_c(draw, "παρέα!", 480, 44, WHITE + (int(235 * hi),))
+            text_c(draw, "παρέα!", 420, 44, WHITE + (int(235 * hi),))
     else:
-        # SPLIT morph
+        # SPLIT morph — leave empty space under 1+1 before SPLIT
         s = (u - 0.52) / 0.48
         morph = ease_in_out(min(s / 0.35, 1.0))
         walker(draw, W / 2 - 155, 1255, "1", t, 0.0, 1.0 - morph, 1.0 - 0.25 * morph, moving=0.0)
         walker(draw, W / 2 + 155, 1255, "1", t, 1.5, 1.0 - morph, 1.0 - 0.25 * morph, moving=0.0)
-        split_banner(draw, 430, t, ease(min(s / 0.2, 1.0)))
+        split_banner(draw, 520, t, ease(min(s / 0.2, 1.0)))  # gap below 1+1
         pop = ease(min(max((s - 0.22) / 0.4, 0.0), 1.0))
-        coin(draw, W / 2 - 175, 1140, "25€", pop, t, 0.0)
-        coin(draw, W / 2 + 175, 1140, "25€", pop, t, 1.1)
-        text_c(draw, "ο καθένας", 1320, 34, SOFT + (int(210 * pop),), FONT_REG)
+        coin(draw, W / 2 - 175, 1080, "25€", pop, t, 0.0)  # gap below SPLIT
+        coin(draw, W / 2 + 175, 1080, "25€", pop, t, 1.1)
+        text_c(draw, "ο καθένας", 1280, 34, SOFT + (int(210 * pop),), FONT_REG)
     return img
 
 
@@ -326,8 +327,8 @@ def scene_trio(t: float, local: float, dur: float) -> Image.Image:
     img = background(t)
     draw = ImageDraw.Draw(img)
     u = local / max(dur, 0.01)
-    example_badge(draw, 180, 1.0)
-    text_c(draw, "1 + 2", 340, 86, GOLD + (255,))
+    example_badge(draw, 160, 1.0)
+    text_c(draw, "1 + 2", 280, 86, GOLD + (255,))
 
     if u < 0.50:
         p = ease_in_out(u / 0.50)
@@ -337,17 +338,17 @@ def scene_trio(t: float, local: float, dur: float) -> Image.Image:
         walker(draw, x3, 1255, "1", t, 2.5, 1.0, 0.98, moving=1.0 if p < 0.97 else 0.0)
         if p > 0.8:
             hi = ease((p - 0.8) / 0.2)
-            text_c(draw, "και τρίτος!", 480, 42, WHITE + (int(235 * hi),))
+            text_c(draw, "και τρίτος!", 420, 42, WHITE + (int(235 * hi),))
     else:
         s = (u - 0.50) / 0.50
         morph = ease_in_out(min(s / 0.35, 1.0))
         for i, ox in enumerate((-210, 0, 210)):
             walker(draw, W / 2 + ox, 1255, "1", t, i * 1.1, 1.0 - morph, 0.95 - 0.2 * morph, moving=0.0)
-        split_banner(draw, 410, t, ease(min(s / 0.2, 1.0)))
+        split_banner(draw, 520, t, ease(min(s / 0.2, 1.0)))  # gap below 1+2
         pop = ease(min(max((s - 0.2) / 0.4, 0.0), 1.0))
         for i, ox in enumerate((-235, 0, 235)):
-            coin(draw, W / 2 + ox, 1120, "20€", pop, t, i * 0.85)
-        text_c(draw, "ο καθένας", 1320, 34, SOFT + (int(210 * pop),), FONT_REG)
+            coin(draw, W / 2 + ox, 1060, "20€", pop, t, i * 0.85)  # gap below SPLIT
+        text_c(draw, "ο καθένας", 1280, 34, SOFT + (int(210 * pop),), FONT_REG)
     return img
 
 
