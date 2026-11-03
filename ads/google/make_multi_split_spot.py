@@ -48,7 +48,7 @@ BEATS = [
     ("example", "Προσοχή. Τα ποσά είναι παράδειγμα.", 0.35),
     ("alone", "Μόνος σου, πενήντα ευρώ.", 0.20),
     ("pair", "Έρχεται παρέα. Σπλιτάρουμε. Είκοσι πέντε.", 0.25),
-    ("trio", "Και τρίτος. Σπλιτάρουμε. Είκοσι.", 0.30),
+    ("trio", "Και τρίτος. Σπλιτάρουμε. Δεκαέξι ευρώ εβδομήντα.", 0.30),
     ("punch", "Εμείς σου βρίσκουμε την παρέα, εσύ σπλιτάρεις την τιμή.", 0.70),
     ("cta", "Taxi and Fly Μούλτι.", 0.30),
     # Natural imperative — no extra «Έλα» in VO
@@ -262,7 +262,7 @@ def scene_intro(t: float, local: float, dur: float) -> Image.Image:
 
 
 def scene_example(t: float, local: float, dur: float) -> Image.Image:
-    """Full-screen disclaimer so nobody mistakes 50/25/20 for a real quote."""
+    """Full-screen disclaimer so nobody mistakes 50/25/16,70 for a real quote."""
     img = background(t)
     draw = ImageDraw.Draw(img)
     k = ease(min(local / 0.4, 1.0))
@@ -323,7 +323,7 @@ def scene_pair(t: float, local: float, dur: float) -> Image.Image:
 
 
 def scene_trio(t: float, local: float, dur: float) -> Image.Image:
-    """Third joins (~50%), then SPLIT → 20€."""
+    """Third joins (~50%), then SPLIT → 16,70€ (50÷3)."""
     img = background(t)
     draw = ImageDraw.Draw(img)
     u = local / max(dur, 0.01)
@@ -347,7 +347,7 @@ def scene_trio(t: float, local: float, dur: float) -> Image.Image:
         split_banner(draw, 520, t, ease(min(s / 0.2, 1.0)))  # gap below 1+2
         pop = ease(min(max((s - 0.2) / 0.4, 0.0), 1.0))
         for i, ox in enumerate((-235, 0, 235)):
-            coin(draw, W / 2 + ox, 1060, "20€", pop, t, i * 0.85)  # gap below SPLIT
+            coin(draw, W / 2 + ox, 1060, "16,70€", pop, t, i * 0.85)  # 50÷3
         text_c(draw, "ο καθένας", 1280, 34, SOFT + (int(210 * pop),), FONT_REG)
     return img
 
