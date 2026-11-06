@@ -14,3 +14,8 @@
 - `stills/` — καρέ AI ηθοποιών
 
 Προτεινόμενο final URL: `https://taxiapp2026.github.io/taxi-client-app/`
+
+Σύντομο σποτ «Από την πόρτα σου στο αεροδρόμιο» (9:16, φωνή Nestoras, ζεστή πρωτότυπη μουσική, καμπάνα στο σήμα):
+
+- `taxi-and-fly-spot-porta-aerodromio.mp4` — με αφήγηση
+- `taxi-and-fly-spot-porta-aerodromio-mousiki.mp4` — μόνο μουσική

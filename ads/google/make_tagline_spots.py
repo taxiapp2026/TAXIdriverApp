@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 from add_pretty_music import pretty_music  # noqa: E402
 from build_video import FONT, FONT_REG, duration, ff, mix  # noqa: E402
 from rebuild_brand_process import icon_lettering  # noqa: E402
-from spot_audio import drive_music, logo_sting, plain_music  # noqa: E402
+from spot_audio import drive_music, hope_music, logo_sting, plain_music  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
 GOLD = (255, 210, 40)
@@ -84,6 +84,16 @@ SPOTS = [
         "speech_bed": "drive",
         "brand_spoken": BRAND_SPOKEN,
         "brand_tag": BRAND_TAG,
+    },
+    {
+        "slug": "porta-aerodromio",
+        "el": "Από την πόρτα σου\nστο αεροδρόμιο",
+        "spoken": "Από την πόρτα σου στο αεροδρόμιο.",
+        "en": "From your door to the airport",
+        # Warm bed — the line is a calm ride, not a club track.
+        "speech_bed": "hope",
+        "brand_spoken": "Taxi and Fly. Από και προς το αεροδρόμιο.",
+        "brand_tag": "Από και προς\nτο αεροδρόμιο",
     },
 ]
 
@@ -472,6 +482,9 @@ async def build(spot: dict) -> Path:
     if bed_kind == "drive":
         drive_music(vlen + 0.4, voiced_bed)
         bed_vol = 0.20
+    elif bed_kind == "hope":
+        hope_music(vlen + 0.4, voiced_bed)
+        bed_vol = 0.24
     else:
         pretty_music(vlen + 0.4, voiced_bed)
         bed_vol = 0.15
@@ -484,6 +497,9 @@ async def build(spot: dict) -> Path:
     if bed_kind == "drive":
         drive_music(vlen + 0.4, plain_bed)
         plain_vol = 0.38
+    elif bed_kind == "hope":
+        hope_music(vlen + 0.4, plain_bed)
+        plain_vol = 0.46
     else:
         plain_music(vlen + 0.4, plain_bed)
         plain_vol = 0.34
