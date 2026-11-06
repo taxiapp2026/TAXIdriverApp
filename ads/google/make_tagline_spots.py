@@ -98,18 +98,20 @@ SPOTS = [
     {
         "slug": "multi-stop-split",
         "el": "Πας Αεροδρόμιο;\nΚλείσε Ταξί με Multi-Stop\nκαι κάνε Split τα έξοδα!",
-        # Phonetic, so the Greek voice says «μούλτι στοπ» and «σπλιτ».
+        # «μούλτι στοπ» is spoken in Greek. Split stays the English word.
         # «στοπ» is the second half of the on-screen word Multi-Stop.
-        "spoken": "Πας Αεροδρόμιο; Κλείσε Ταξί με μούλτι στοπ και κάνε σπλιτ τα έξοδα.",
+        "spoken": "Πας Αεροδρόμιο; Κλείσε Ταξί με μούλτι στοπ και κάνε Split τα έξοδα.",
         "absorb": ["στοπ"],
         "en": "Going to the airport? Book a multi-stop taxi and split the fare.",
         "el_size": 64,
         "line_h": 92,
         "gold_words": ["Multi-Stop", "Split"],
         "gap": 1.45,
+        "tail": 2.6,
+        "tag_size": 50,
         "speech_bed": "hope",
         "brand_spoken": "Taxi and Fly. Από και προς το αεροδρόμιο.",
-        "brand_tag": "Από και προς\nτο αεροδρόμιο",
+        "brand_tag": "Από και προς το αεροδρόμιο",
     },
 ]
 
@@ -333,9 +335,9 @@ def trim_edges(src: Path, dst: Path) -> float:
     ff(
         "-i", str(src),
         "-af",
-        "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB,"
+        "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB:start_silence=0.02,"
         "areverse,"
-        "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB,"
+        "silenceremove=start_periods=1:start_duration=0.12:start_threshold=-36dB:start_silence=0.45,"
         "areverse",
         "-ac", "1", "-ar", "44100", str(dst),
     )
@@ -439,8 +441,9 @@ async def build(spot: dict) -> Path:
         word_times = [INTRO + 0.3]
     t1 = duration(tag_wav)
     # Hold the finished line for a beat, then land on the logo with the words.
+    tail = float(spot.get("tail", TAIL))
     switch = INTRO + t1 + max(gap - 0.05, 0.4)
-    total = INTRO + t1 + gap + duration(brand_wav) + TAIL
+    total = INTRO + t1 + gap + duration(brand_wav) + tail
 
     probe = ImageDraw.Draw(Image.new("RGB", (10, 10)))
     # Slightly larger type for short two-beat lines.
@@ -457,7 +460,7 @@ async def build(spot: dict) -> Path:
         "f_el": f_el,
         "f_en": ImageFont.truetype(FONT_REG, 40),
         "f_brand": ImageFont.truetype(FONT, 84),
-        "f_tag": ImageFont.truetype(FONT_REG, 44),
+        "f_tag": ImageFont.truetype(FONT_REG, int(spot.get("tag_size", 44))),
         "f_url": ImageFont.truetype(FONT_REG, 33),
         "placed": placed,
         "block_h": block_h,
