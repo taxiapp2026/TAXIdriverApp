@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 from add_pretty_music import pretty_music  # noqa: E402
 from build_video import FONT, FONT_REG, duration, ff, mix  # noqa: E402
 from rebuild_brand_process import icon_lettering  # noqa: E402
-from spot_audio import drive_music, logo_sting, plain_music  # noqa: E402
+from spot_audio import drive_music, hope_music, logo_sting, plain_music  # noqa: E402
 
 W, H, FPS = 1080, 1920, 30
 GOLD = (255, 210, 40)
@@ -84,6 +84,34 @@ SPOTS = [
         "speech_bed": "drive",
         "brand_spoken": BRAND_SPOKEN,
         "brand_tag": BRAND_TAG,
+    },
+    {
+        "slug": "porta-aerodromio",
+        "el": "Από την πόρτα σου\nστο αεροδρόμιο",
+        "spoken": "Από την πόρτα σου στο αεροδρόμιο.",
+        "en": "From your door to the airport",
+        # Warm bed — the line is a calm ride, not a club track.
+        "speech_bed": "hope",
+        "brand_spoken": "Taxi and Fly. Από και προς το αεροδρόμιο.",
+        "brand_tag": "Από και προς\nτο αεροδρόμιο",
+    },
+    {
+        "slug": "multi-stop-split",
+        "el": "Πας Αεροδρόμιο;\nΚλείσε Ταξί με Multi-Stop\nκαι κάνε Split τα έξοδα!",
+        # «μούλτι στοπ» is spoken in Greek. Split stays the English word.
+        # «στοπ» is the second half of the on-screen word Multi-Stop.
+        "spoken": "Πας Αεροδρόμιο; Κλείσε Ταξί με μούλτι στοπ και κάνε Split τα έξοδα.",
+        "absorb": ["στοπ"],
+        "en": "Going to the airport? Book a multi-stop taxi and split the fare.",
+        "el_size": 64,
+        "line_h": 92,
+        "gold_words": ["Multi-Stop", "Split"],
+        "gap": 1.45,
+        "tail": 2.6,
+        "tag_size": 50,
+        "speech_bed": "hope",
+        "brand_spoken": "Taxi and Fly. Από και προς το αεροδρόμιο.",
+        "brand_tag": "Από και προς το αεροδρόμιο",
     },
 ]
 
@@ -192,7 +220,8 @@ def tagline_frame(t: float, cfg: dict) -> Image.Image:
             continue
         ease = 1 - (1 - k) ** 3
         y = top + item["y"] + (1 - ease) * 36
-        draw.text((item["x"], y), item["text"], font=f_el, fill=WHITE + (int(255 * ease),))
+        ink = GOLD if item["text"] in cfg.get("gold_words", ()) else WHITE
+        draw.text((item["x"], y), item["text"], font=f_el, fill=ink + (int(255 * ease),))
 
     bar_k = max(0.0, min((t - cfg["word_times"][0]) / max(last_word_end - cfg["word_times"][0], 0.4), 1.0))
     bar_w = 260 * bar_k
@@ -306,9 +335,9 @@ def trim_edges(src: Path, dst: Path) -> float:
     ff(
         "-i", str(src),
         "-af",
-        "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB,"
+        "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB:start_silence=0.02,"
         "areverse,"
-        "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB,"
+        "silenceremove=start_periods=1:start_duration=0.12:start_threshold=-36dB:start_silence=0.45,"
         "areverse",
         "-ac", "1", "-ar", "44100", str(dst),
     )
@@ -392,7 +421,8 @@ async def build(spot: dict) -> Path:
     intro = BUILD / f"spot_{slug}_intro.wav"
     pause = BUILD / f"spot_{slug}_pause.wav"
     ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{INTRO:.3f}", str(intro))
-    ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{GAP:.3f}", str(pause))
+    gap = float(spot.get("gap", GAP))
+    ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{gap:.3f}", str(pause))
     lst = BUILD / f"spot_{slug}_join.txt"
     lst.write_text(
         "".join(f"file '{p.resolve()}'\n" for p in (intro, tag_wav, pause, brand_wav))
@@ -400,23 +430,37 @@ async def build(spot: dict) -> Path:
     vo = BUILD / f"spot_{slug}_vo.wav"
     ff("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(vo))
 
-    word_times = [max(m["t"] - lead, 0.06) + INTRO for m in marks] or [INTRO + 0.3]
+    absorb = {w.casefold() for w in spot.get("absorb") or ()}
+    word_times: list[float] = []
+    for m in marks:
+        token = m["text"].strip(".,;!?:").casefold()
+        if token in absorb and word_times:
+            continue
+        word_times.append(max(m["t"] - lead, 0.06) + INTRO)
+    if not word_times:
+        word_times = [INTRO + 0.3]
     t1 = duration(tag_wav)
     # Hold the finished line for a beat, then land on the logo with the words.
-    switch = INTRO + t1 + 0.8
-    total = INTRO + t1 + GAP + duration(brand_wav) + TAIL
+    tail = float(spot.get("tail", TAIL))
+    switch = INTRO + t1 + max(gap - 0.05, 0.4)
+    total = INTRO + t1 + gap + duration(brand_wav) + tail
 
     probe = ImageDraw.Draw(Image.new("RGB", (10, 10)))
     # Slightly larger type for short two-beat lines.
-    el_size = 82 if "\n" in spot["el"] else 78
-    line_h = 112 if "\n" in spot["el"] else 104
+    el_size = int(spot.get("el_size", 82 if "\n" in spot["el"] else 78))
+    line_h = int(spot.get("line_h", 112 if "\n" in spot["el"] else 104))
     f_el = ImageFont.truetype(FONT, el_size)
     placed, block_h = layout_words(probe, spot["el"], f_el, 920, line_h)
+    if len(word_times) != len(placed):
+        raise RuntimeError(
+            f"{slug}: {len(word_times)} spoken beats for {len(placed)} on-screen words "
+            f"({[m['text'] for m in marks]})"
+        )
     cfg = {
         "f_el": f_el,
         "f_en": ImageFont.truetype(FONT_REG, 40),
         "f_brand": ImageFont.truetype(FONT, 84),
-        "f_tag": ImageFont.truetype(FONT_REG, 44),
+        "f_tag": ImageFont.truetype(FONT_REG, int(spot.get("tag_size", 44))),
         "f_url": ImageFont.truetype(FONT_REG, 33),
         "placed": placed,
         "block_h": block_h,
@@ -425,6 +469,7 @@ async def build(spot: dict) -> Path:
         "en_at": word_times[min(1, len(word_times) - 1)] + 0.2,
         "en": spot["en"],
         "brand_tag": spot.get("brand_tag") or "",
+        "gold_words": set(spot.get("gold_words") or ()),
     }
 
     frames = BUILD / f"frames_{slug}"
@@ -472,6 +517,9 @@ async def build(spot: dict) -> Path:
     if bed_kind == "drive":
         drive_music(vlen + 0.4, voiced_bed)
         bed_vol = 0.20
+    elif bed_kind == "hope":
+        hope_music(vlen + 0.4, voiced_bed)
+        bed_vol = 0.24
     else:
         pretty_music(vlen + 0.4, voiced_bed)
         bed_vol = 0.15
@@ -484,6 +532,9 @@ async def build(spot: dict) -> Path:
     if bed_kind == "drive":
         drive_music(vlen + 0.4, plain_bed)
         plain_vol = 0.38
+    elif bed_kind == "hope":
+        hope_music(vlen + 0.4, plain_bed)
+        plain_vol = 0.46
     else:
         plain_music(vlen + 0.4, plain_bed)
         plain_vol = 0.34

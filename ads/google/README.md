@@ -14,3 +14,15 @@
 - `stills/` — καρέ AI ηθοποιών
 
 Προτεινόμενο final URL: `https://taxiapp2026.github.io/taxi-client-app/`
+
+Σποτ Multi-Stop / Split (9:16, φωνή Nestoras, ζεστή πρωτότυπη μουσική, καμπάνα στο σήμα):
+
+«Πας Αεροδρόμιο; Κλείσε Ταξί με Multi-Stop και κάνε Split τα έξοδα!»
+
+- `taxi-and-fly-spot-multi-stop-split.mp4` — με αφήγηση
+- `taxi-and-fly-spot-multi-stop-split-mousiki.mp4` — μόνο μουσική
+
+Σύντομο σποτ «Από την πόρτα σου στο αεροδρόμιο» (9:16, φωνή Nestoras, ζεστή πρωτότυπη μουσική, καμπάνα στο σήμα):
+
+- `taxi-and-fly-spot-porta-aerodromio.mp4` — με αφήγηση
+- `taxi-and-fly-spot-porta-aerodromio-mousiki.mp4` — μόνο μουσική
