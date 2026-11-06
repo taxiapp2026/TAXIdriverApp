@@ -98,7 +98,10 @@ SPOTS = [
     {
         "slug": "multi-stop-split",
         "el": "Πας Αεροδρόμιο;\nΚλείσε Ταξί με Multi-Stop\nκαι κάνε Split τα έξοδα!",
-        "spoken": "Πας Αεροδρόμιο; Κλείσε Ταξί με Multi-Stop και κάνε Split τα έξοδα.",
+        # Phonetic, so the Greek voice says «μούλτι στοπ» and «σπλιτ».
+        # «στοπ» is the second half of the on-screen word Multi-Stop.
+        "spoken": "Πας Αεροδρόμιο; Κλείσε Ταξί με μούλτι στοπ και κάνε σπλιτ τα έξοδα.",
+        "absorb": ["στοπ"],
         "en": "Going to the airport? Book a multi-stop taxi and split the fare.",
         "el_size": 64,
         "line_h": 92,
@@ -425,7 +428,15 @@ async def build(spot: dict) -> Path:
     vo = BUILD / f"spot_{slug}_vo.wav"
     ff("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(vo))
 
-    word_times = [max(m["t"] - lead, 0.06) + INTRO for m in marks] or [INTRO + 0.3]
+    absorb = {w.casefold() for w in spot.get("absorb") or ()}
+    word_times: list[float] = []
+    for m in marks:
+        token = m["text"].strip(".,;!?:").casefold()
+        if token in absorb and word_times:
+            continue
+        word_times.append(max(m["t"] - lead, 0.06) + INTRO)
+    if not word_times:
+        word_times = [INTRO + 0.3]
     t1 = duration(tag_wav)
     # Hold the finished line for a beat, then land on the logo with the words.
     switch = INTRO + t1 + max(gap - 0.05, 0.4)
@@ -437,6 +448,11 @@ async def build(spot: dict) -> Path:
     line_h = int(spot.get("line_h", 112 if "\n" in spot["el"] else 104))
     f_el = ImageFont.truetype(FONT, el_size)
     placed, block_h = layout_words(probe, spot["el"], f_el, 920, line_h)
+    if len(word_times) != len(placed):
+        raise RuntimeError(
+            f"{slug}: {len(word_times)} spoken beats for {len(placed)} on-screen words "
+            f"({[m['text'] for m in marks]})"
+        )
     cfg = {
         "f_el": f_el,
         "f_en": ImageFont.truetype(FONT_REG, 40),
